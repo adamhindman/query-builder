@@ -36,9 +36,16 @@ body {
 /* ---------- Shell ---------- */
 
 .builder {
-  max-width: 900px;
+  max-width: min(100%, 1600px);
   margin: 0 auto;
   padding: 2rem 1.5rem 4rem;
+}
+
+/* The tree is sized by its container, not the viewport — the host page can
+   narrow it (sidebars, splitters) without any window resize. Making it a size
+   container lets the nesting indent respond via cqw units. */
+.tree-mount {
+  container-type: inline-size;
 }
 
 .builder-header {
@@ -86,6 +93,10 @@ body {
   flex-direction: column;
   border-radius: var(--radius);
   padding: 0.2rem 0.5rem 0.25rem;
+  /* Per-level nesting indent, elastic: tightens as the container narrows so
+     deep trees stay usable. The bracket's width is derived from it below —
+     keep them in sync. */
+  --indent: clamp(28px, 4cqw, 40px);
 }
 /* Exclusion reads from the red bracket + the red "Excluded (NOT)" pill —
    no background fill. */
@@ -112,7 +123,8 @@ body {
 .group-head {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
   padding: 0.6rem 0 0.3rem;
 }
 
@@ -132,7 +144,9 @@ body {
   left: 8px;
   top: 0;
   bottom: 0;
-  width: 22px;
+  /* Spans from 8px to 10px short of the indent, so the branch curves keep a
+     constant gap to the content at any indent (22px wide at the full 40px). */
+  width: calc(var(--indent) - 18px);
   --bracket-color: var(--and);
 }
 .group.or > .group-lower > .group-bracket {
@@ -170,7 +184,7 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  padding: 0 0.5rem 0.15rem 40px;
+  padding: 0 0.5rem 0.15rem var(--indent);
 }
 
 .spacer {

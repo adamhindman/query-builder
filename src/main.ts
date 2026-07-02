@@ -88,7 +88,11 @@ store.subscribe(render)
 render()
 
 // Bracket heights depend on laid-out child sizes, which change with width.
-window.addEventListener('resize', () => alignBrackets(treeMount))
+// Observe the tree mount itself (not the window): when embedded in a host
+// page, the container can resize without any window resize. The brackets are
+// absolutely positioned, so realigning them never resizes the mount — no
+// observer feedback loop.
+new ResizeObserver(() => alignBrackets(treeMount)).observe(treeMount)
 
 // Close any open overflow menu when clicking outside it.
 document.addEventListener('click', (e) => {
