@@ -7,6 +7,7 @@
   --gray-500: #87929e; /* gray/500 */
   --gray-700: #616972; /* gray/700 */
   --gray-950: #33373d; /* gray/950 — headings */
+  --blue-50: #f3f7fc; /* blue/50 */
   --blue-100: #e4ecf8; /* blue/100 */
   --blue-600: #497097; /* blue/600 */
   --orange-50: #fef1ed; /* orange/50 */
@@ -152,7 +153,8 @@ body {
   width: 100%;
   display: flex;
   align-items: center;
-  padding: 0.38rem 0.4rem;
+  gap: 0.5rem;
+  padding: 0.3rem 0.4rem;
   border-radius: 6px;
   font-size: 0.85rem;
   font-weight: 500;
@@ -161,10 +163,62 @@ body {
   cursor: pointer;
 }
 .facet-row:hover {
-  background: var(--gray-100);
+  background: var(--blue-50);
 }
 .facet-row:hover .facet-label {
   color: var(--and);
+}
+
+/* "+" affordance, revealed on row hover. It's a span, not a nested button —
+   the whole row already is the button. */
+.facet-add {
+  flex: none;
+  margin-left: auto;
+  position: relative;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--and);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--and);
+  font-size: 0.85rem;
+  line-height: 1;
+  opacity: 0;
+}
+.facet-row:hover .facet-add {
+  opacity: 1;
+}
+/* Custom tooltip below the "+" (replaces the native title). */
+.facet-add::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: 10;
+  background: var(--gray-950);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 0.3rem 0.55rem;
+  border-radius: 5px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s 0.15s;
+}
+.facet-add:hover::after {
+  opacity: 1;
+}
+/* While a row is being dragged: dim it (matching the tree's drag style) and
+   keep the tooltip out of the drag image. */
+.facet-row.dragging {
+  opacity: 0.45;
+}
+.facet-row.dragging .facet-add::after {
+  display: none;
 }
 
 /* Values whose labels match the search: clickable pills under their property,

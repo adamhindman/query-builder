@@ -255,7 +255,11 @@ are always chosen in the builder.
 - Each **property row** is a button — clicking it appends a condition for
   that property, **with no value chosen yet**, to the **end of the root
   group**. The value is then picked in the builder. (No kind/type badge on
-  the row — just the label.)
+  the row — just the label.) Hovering a row tints it **light blue** (blue/50)
+  and reveals a **"+" affordance** at the row's right edge — a small
+  blue-outlined circle (a span, not a nested button; the row itself is the
+  button) with a custom dark tooltip below it ("Add a condition on X") via
+  CSS `::after`, replacing any native title.
 - **Search input** at the top filters the rows by property label *or* value
   label (matching a value surfaces its property). The helper text under the
   search box stays **generic** — it names no example values from the schema.
@@ -266,8 +270,16 @@ are always chosen in the builder.
   end of the root group. This is the only place the sidebar shows values, and
   only while they match the search. Empty categories drop out; the search
   stays fixed while the list scrolls.
-- New conditions always land in the root group; the user then **drags them
-  into the proper nested group** — this is why drag-and-drop is enabled.
+- New conditions land in the root group by default; the user then **drags
+  them into the proper nested group** — this is why drag-and-drop is enabled.
+- Property rows are also **draggable straight into the tree**: dropping one
+  on any drop zone creates the new condition at exactly that position (one
+  gesture instead of click-then-drag). The in-flight property id crosses the
+  sidebar↔tree boundary via a tiny **drag channel module** (`ui/dnd.ts`) —
+  needed because HTML5 DnD hides the payload during `dragover`, and kept as
+  an explicit shared channel because the sidebar and tree are independent
+  components (in a React port: separate components + a context/store). The
+  tree's own node-reorder drag state stays private to the render module.
 - The sidebar is persistent chrome: it doesn't re-render on store changes,
   only its list region re-renders as the filter text changes (so the search
   input never loses focus).

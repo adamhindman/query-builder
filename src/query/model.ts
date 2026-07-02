@@ -242,6 +242,11 @@ export function moveNode(root: Group, nodeId: string, targetGroupId: string, ind
   return insertInto(detached, targetGroupId, node, target) as Group
 }
 
+/** Insert a new node at `index` within the group `groupId` (index clamped). */
+export function insertChild(root: Group, groupId: string, index: number, child: Node): Group {
+  return insertInto(root, groupId, child, index) as Group
+}
+
 function insertInto(node: Node, targetGroupId: string, toInsert: Node, index: number): Node {
   if (node.kind !== 'group') return node
   if (node.id === targetGroupId) {

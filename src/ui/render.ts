@@ -4,8 +4,10 @@ import type { Property } from '../data/schema'
 import type { Condition, ConditionOp, Group, Node } from '../query/model'
 import { newCondition, newGroup, isDescendant, countConditions } from '../query/model'
 import type { QueryStore } from '../query/store'
+import { draggedPropertyId, endPropertyDrag } from './dnd'
 import {
   addChild,
+  insertChild,
   clearGroup,
   moveNode,
   removeNode,
@@ -546,12 +548,15 @@ function dropZone(store: QueryStore, parentId: string, index: number): HTMLEleme
 }
 
 function makeDropTarget(store: QueryStore, zone: HTMLElement, parentId: string, index: number): void {
+  // Zones accept two kinds of drag: a node being moved within the tree
+  // (draggingId, module-local) and a property from the sidebar (via the
+  // cross-component dnd channel), which becomes a new condition on drop.
   zone.addEventListener('dragover', (e) => {
-    if (!draggingId) return
+    if (!draggingId && !draggedPropertyId()) return
     // Block dropping a group into itself or one of its descendants.
-    if (isDescendant(store.get(), draggingId, parentId)) return
+    if (draggingId && isDescendant(store.get(), draggingId, parentId)) return
     e.preventDefault()
-    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+    if (e.dataTransfer) e.dataTransfer.dropEffect = draggingId ? 'move' : 'copy'
     zone.classList.add('over')
   })
   zone.addEventListener('dragleave', () => zone.classList.remove('over'))
@@ -559,6 +564,12 @@ function makeDropTarget(store: QueryStore, zone: HTMLElement, parentId: string, 
     e.preventDefault()
     e.stopPropagation()
     zone.classList.remove('over')
+    const propertyId = draggedPropertyId()
+    if (propertyId) {
+      endPropertyDrag()
+      store.update((s) => insertChild(s, parentId, index, { ...newCondition(), propertyId }))
+      return
+    }
     const id = draggingId
     draggingId = null
     if (id) store.update((s) => moveNode(s, id, parentId, index))

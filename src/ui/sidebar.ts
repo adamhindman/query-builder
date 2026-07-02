@@ -4,6 +4,7 @@ import type { Property, PropertyValue } from '../data/schema'
 import type { Condition } from '../query/model'
 import { addChild, newCondition } from '../query/model'
 import type { QueryStore } from '../query/store'
+import { startPropertyDrag, endPropertyDrag } from './dnd'
 
 /**
  * Left sidebar: every property as a selectable row, grouped by category — the
@@ -95,10 +96,34 @@ export function renderSidebar(store: QueryStore): HTMLElement {
                 {
                   type: 'button',
                   class: 'facet-row',
-                  title: `Add a ${property.label} condition`,
                   onclick: () => addToRoot({ propertyId: property.id }),
+                  // Rows can also be dragged straight onto a drop zone in the
+                  // tree, placing the new condition in one gesture.
+                  draggable: true,
+                  ondragstart: (e: Event) => {
+                    const de = e as DragEvent
+                    startPropertyDrag(property.id)
+                    de.dataTransfer?.setData('text/plain', property.label)
+                    if (de.dataTransfer) de.dataTransfer.effectAllowed = 'copy'
+                    ;(de.currentTarget as HTMLElement).classList.add('dragging')
+                  },
+                  ondragend: (e: Event) => {
+                    endPropertyDrag()
+                    ;(e.currentTarget as HTMLElement).classList.remove('dragging')
+                  },
                 },
                 el('span', { class: 'facet-label' }, highlight(property.label, q)),
+                // Hover affordance only — the whole row is the button; the
+                // custom tooltip (CSS ::after) replaces a native title.
+                el(
+                  'span',
+                  {
+                    class: 'facet-add',
+                    'data-tip': `Add a condition on ${property.label}`,
+                    'aria-hidden': 'true',
+                  },
+                  '+',
+                ),
               ),
               valueHits.length > 0 &&
                 el(
