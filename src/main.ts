@@ -1,9 +1,10 @@
 import './style.css'
 import { el, clear } from './dom'
 import { QueryStore } from './query/store'
-import { newQuery, defaultQuery } from './query/model'
+import { defaultQuery } from './query/model'
 import { PRESETS, getPreset } from './query/presets'
 import { renderTree, alignBrackets } from './ui/render'
+import { renderSidebar } from './ui/sidebar'
 import { summarize } from './query/summary'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
@@ -46,7 +47,7 @@ const shell = el(
         {
           type: 'button',
           class: 'clear-btn',
-          onclick: () => store.update(() => newQuery()),
+          onclick: () => store.update(() => defaultQuery()),
         },
         'Clear all',
       ),
@@ -61,7 +62,8 @@ const shell = el(
   ),
 )
 
-app.replaceChildren(shell)
+// Facet sidebar on the left, builder filling the rest.
+app.replaceChildren(el('div', { class: 'app-layout' }, renderSidebar(store), shell))
 
 /**
  * Colorize the boolean operators in the summary so the sentence carries the

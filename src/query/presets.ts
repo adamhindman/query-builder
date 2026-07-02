@@ -1,5 +1,5 @@
 import type { Condition, ConditionOp, Group, Node } from './model'
-import { newCondition, newGroup, newQuery } from './model'
+import { newCondition, newGroup } from './model'
 
 /**
  * Ready-made queries for the "Load an example" picker — realistic cohort
@@ -34,11 +34,6 @@ export type Preset = {
 }
 
 export const PRESETS: Preset[] = [
-  {
-    id: 'empty',
-    label: 'No conditions',
-    build: () => newQuery(),
-  },
   {
     id: 'ad-biomarker',
     label: "Alzheimer's cases with biomarkers",

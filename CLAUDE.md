@@ -69,7 +69,12 @@ type Property =
   | { id; label; kind: 'boolean' }                       // Yes/No
   | { id; label; kind: 'range'; unit?: string }          // min/max numbers
   | { id; label; kind: 'minimum'; options: number[] }    // "at least N+"
+type PropertyGroup = { label: string; properties: Property[] }  // sidebar category
 ```
+
+Properties are organized into named **groups** (categories) — the facet
+sidebar renders one section per group. The flat `PROPERTIES` list is derived
+from the groups.
 
 - **enum** — multi-select from fixed values, with the any/all/none operator.
   (`ordered` is inert metadata for a possible future range-style operator.)
@@ -224,22 +229,60 @@ preserve them.
   aligned line, with `--ink-soft`-level contrast (not faint grey).
 - **Default startup state:** the builder opens with one blank condition already
   present (as if the user clicked "+ Condition"), not an empty group.
-- **Color language:** AND = blue, OR = amber, NOT/exclude = red. The amber is
-  kept dark enough (`#b45309`-ish) for white text on the active pill to pass
-  contrast. Selects are soft grey pills (border only on focus). Secondary icon
-  buttons (condition ✕, menu trigger) are light-stroked outlined buttons.
+- **Color language:** AND = blue, OR = amber/orange, NOT/exclude = red, search
+  hit = yellow. All colors snap to the product design system's **Light tokens**
+  (`Light.tokens.json`): the grey ramp for text/borders/fills (gray/950 ink →
+  gray/50 faint bg), AND = blue/600 (+ blue/100 soft), OR = orange/600 (+
+  orange/50 soft) — dark enough for white text on the active pill to pass
+  contrast — NOT = system/red (+ system/red-background soft), search highlight
+  = system/yellow + system/yellow-background (dark-yellow for hover). Token
+  values live as `--gray-*`-style custom properties at the top of the
+  stylesheet; the semantic vars (`--and`, `--or`, `--exclude`, `--ink`, …)
+  point at them — style rules use only the semantic vars. Selects are soft
+  grey pills (border only on focus). Secondary icon buttons (condition ✕, menu
+  trigger) are light-stroked outlined buttons.
 
 ---
 
-## Drag-and-drop (currently hidden)
+## Facet sidebar
 
-Full drag-to-reorder is implemented but **hidden behind a flag** (`DND_ENABLED`
-in the render module, set to `false`). When enabled: a drag handle per row,
-thin drop zones between children, and drop targets scoped per group.
+A **left sidebar** lists every **property** as a selectable row, one section
+per property group (uppercase category header with a count). Its purpose is to
+splay the properties out where they can be seen, instead of hiding them inside
+the builder's dropdown selector — it is **not** for selecting values; values
+are always chosen in the builder.
 
-Semantics to keep in mind if re-enabling: **reordering within a group is purely
-cosmetic** (AND/OR are commutative), but **dropping into a different group
-changes the query's logic** (different combinator / exclude / nesting).
+- Each **property row** is a button — clicking it appends a condition for
+  that property, **with no value chosen yet**, to the **end of the root
+  group**. The value is then picked in the builder. (No kind/type badge on
+  the row — just the label.)
+- **Search input** at the top filters the rows by property label *or* value
+  label (matching a value surfaces its property). The helper text under the
+  search box stays **generic** — it names no example values from the schema.
+  Matched substrings are **highlighted**
+  (`<mark>`, amber) in property labels. When the match is on a **value**, that
+  value appears as a clickable **amber pill** under its property — clicking it
+  appends a ready-made condition (property + that value, `is any of`) to the
+  end of the root group. This is the only place the sidebar shows values, and
+  only while they match the search. Empty categories drop out; the search
+  stays fixed while the list scrolls.
+- New conditions always land in the root group; the user then **drags them
+  into the proper nested group** — this is why drag-and-drop is enabled.
+- The sidebar is persistent chrome: it doesn't re-render on store changes,
+  only its list region re-renders as the filter text changes (so the search
+  input never loses focus).
+
+## Drag-and-drop
+
+Full drag-to-reorder is implemented and **enabled** (`DND_ENABLED` in the
+render module): a drag handle per row, thin drop zones between children, and
+drop targets scoped per group. It exists so conditions added from the sidebar
+(which land at the end of the root group) can be moved into their proper
+nested group.
+
+Semantics to keep in mind: **reordering within a group is purely cosmetic**
+(AND/OR are commutative), but **dropping into a different group changes the
+query's logic** (different combinator / exclude / nesting).
 
 ---
 
@@ -289,6 +332,12 @@ changes the query's logic** (different combinator / exclude / nesting).
   document-level click listener closes any open menu on outside clicks, and
   re-renders naturally close them too. Single-select items also explicitly
   close their own menu, so no-op picks don't leave it hanging open.
+- **The property dropdown is filterable** (the operator and N+ ones are not):
+  a sticky filter input at the top of its menu narrows the list as you type —
+  matching **property labels only, never values** (value search lives in the
+  sidebar). Enter picks the first remaining option; the filter resets and
+  refocuses each time the menu opens. Filtering is local DOM state (hiding
+  items), not store state — a store update would re-render and steal focus.
 - **Bracket drawing:** the bracket container is an absolutely-positioned strip;
   the vertical line and per-child branch curves are child divs created during
   the measurement pass (each is a box with left+bottom borders and a rounded

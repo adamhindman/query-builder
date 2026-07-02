@@ -1,19 +1,38 @@
 :root {
+  /* ---- Design-system tokens (Light.tokens.json) ---- */
+  --gray-50: #f9f9fa; /* gray/50 — faint backgrounds */
+  --gray-100: #eceef1; /* gray/100 — borders and dividers */
+  --gray-200: #dee0e5; /* gray/200 */
+  --gray-300: #b7bfc9; /* gray/300 */
+  --gray-500: #87929e; /* gray/500 */
+  --gray-700: #616972; /* gray/700 */
+  --gray-950: #33373d; /* gray/950 — headings */
+  --blue-100: #e4ecf8; /* blue/100 */
+  --blue-600: #497097; /* blue/600 */
+  --orange-50: #fef1ed; /* orange/50 */
+  --orange-600: #bf5a17; /* orange/600 */
+  --red: #d42322; /* system/red */
+  --red-bg: #fac3c3; /* system/red background */
+  --yellow: #f2c94c; /* system/yellow */
+  --yellow-dark: #9a6700; /* system/dark yellow */
+  --yellow-bg: #fdefc1; /* system/yellow background */
+
+  /* ---- Semantic palette, snapped to the tokens above ---- */
   --bg: #ffffff;
   --surface: #ffffff;
-  --ink: #1f2430;
-  --ink-soft: #5b6472;
-  --ink-faint: #8a93a3;
-  --ink-faintest: #aeb6c1;
-  --line: #e3e7ec;
-  --stroke-light: #ebedf1;
+  --ink: var(--gray-950);
+  --ink-soft: var(--gray-700);
+  --ink-faint: var(--gray-500);
+  --ink-faintest: var(--gray-300);
+  --line: var(--gray-100);
+  --stroke-light: var(--gray-100);
 
-  --and: #2563eb; /* blue  */
-  --and-soft: #eaf1ff;
-  --or: #b45309; /* amber, dark enough for white text on the active pill */
-  --or-soft: #fff4e2;
-  --exclude: #dc2626; /* red */
-  --exclude-soft: #fdecec;
+  --and: var(--blue-600);
+  --and-soft: var(--blue-100);
+  --or: var(--orange-600); /* dark enough for white text on the active pill */
+  --or-soft: var(--orange-50);
+  --exclude: var(--red);
+  --exclude-soft: var(--red-bg);
 
   --radius: 10px;
   --radius-sm: 7px;
@@ -35,10 +54,155 @@ body {
 
 /* ---------- Shell ---------- */
 
+.app-layout {
+  display: flex;
+  align-items: flex-start;
+}
+
 .builder {
+  flex: 1;
+  min-width: 0;
   max-width: min(100%, 1600px);
   margin: 0 auto;
   padding: 2rem 1.5rem 4rem;
+}
+
+/* ---------- Facet sidebar ---------- */
+
+/* Sticky full-height panel; the search stays put and only the list scrolls. */
+.sidebar {
+  flex: none;
+  width: 320px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.sidebar-top {
+  padding: 1rem 1rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Anchors the ✕ clear button inside the input. */
+.search-wrap {
+  position: relative;
+}
+
+.search-input {
+  font: inherit;
+  font-size: 0.88rem;
+  width: 100%;
+  height: 36px;
+  padding: 0 1.8rem 0 0.7rem; /* right side clears the ✕ button */
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--surface);
+}
+.search-input::placeholder {
+  color: var(--ink-faint);
+}
+.search-input:focus-visible {
+  outline: 2px solid var(--and);
+  outline-offset: 1px;
+}
+
+.sidebar-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--ink-faint);
+}
+
+.sidebar-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.25rem 1rem 1.5rem;
+}
+
+.sidebar-empty {
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+  font-style: italic;
+  padding: 0.75rem 0.15rem;
+}
+
+.facet-group {
+  margin-top: 1rem;
+}
+.facet-group h3 {
+  margin: 0 0 0.2rem;
+  padding: 0 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+/* Property row — a button that adds a condition for the property (value
+   picked in the builder). */
+.facet-row {
+  border: none;
+  background: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0.38rem 0.4rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.facet-row:hover {
+  background: var(--gray-100);
+}
+.facet-row:hover .facet-label {
+  color: var(--and);
+}
+
+/* Values whose labels match the search: clickable pills under their property,
+   adding a ready-made condition. Amber = "search hit", echoed by the <mark>
+   on the matched substring. */
+.facet-hits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0.05rem 0.4rem 0.3rem;
+}
+.facet-hit {
+  border: 1px solid var(--yellow);
+  background: var(--yellow-bg);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.12rem 0.55rem;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.facet-hit:hover {
+  border-color: var(--yellow-dark);
+  color: var(--yellow-dark);
+}
+
+/* Matched substrings, in property labels and hit pills alike. */
+.sidebar mark {
+  background: var(--yellow-bg);
+  color: inherit;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+/* Inside a hit pill the light yellow would vanish — step up to full yellow. */
+.facet-hit mark {
+  background: var(--yellow);
 }
 
 /* The tree is sized by its container, not the viewport — the host page can
@@ -106,17 +270,17 @@ body {
    what's left is the innermost one. The root is exempt: it spans the whole
    builder, so tinting it adds nothing. */
 .group:hover:not(.root):not(:has(.group:hover)) {
-  background: #f6f7f9;
+  background: var(--gray-50);
 }
 /* On the tinted background, the grey inputs would melt away — darken them a
    step (and their hover a step further) so they stay visible. */
 .group:hover:not(.root):not(:has(.group:hover)) summary.inline-select,
 .group:hover:not(.root):not(:has(.group:hover)) .num-input {
-  background: #e9edf1;
+  background: var(--gray-200);
 }
 .group:hover:not(.root):not(:has(.group:hover)) summary.inline-select:hover,
 .group:hover:not(.root):not(:has(.group:hover)) .num-input:hover {
-  background: #dfe3e9;
+  background: var(--gray-300);
 }
 
 /* The combinator pill heads the group. */
@@ -315,6 +479,13 @@ body {
   border-color: var(--exclude);
   background: var(--exclude-soft);
 }
+/* The tree's last condition can't be removed — after :hover so it wins. */
+.icon-btn:disabled {
+  color: var(--ink-faintest);
+  border-color: var(--stroke-light);
+  background: var(--surface);
+  cursor: default;
+}
 
 /* ---------- Overflow menu (group actions) ---------- */
 
@@ -343,7 +514,7 @@ summary.inline-select {
   gap: 0.4rem;
   height: 30px;
   padding: 0 0.6rem;
-  background: #f1f3f5;
+  background: var(--gray-100);
   border-radius: 7px;
 }
 summary.inline-select::after {
@@ -355,7 +526,7 @@ summary.inline-select::after {
   margin-top: -2px;
 }
 summary.inline-select:hover {
-  background: #e9edf1;
+  background: var(--gray-200);
 }
 .menu[open] > summary.inline-select {
   background: var(--and-soft);
@@ -396,7 +567,67 @@ summary.inline-select:hover {
   color: var(--ink);
 }
 .menu-item:hover {
-  background: #f1f3f5;
+  background: var(--gray-100);
+}
+
+/* Filter row atop a filterable menu (the property dropdown): sticky, so it
+   stays put while the list scrolls. Negative margins span the list's padding;
+   the matching negative `top` keeps it flush against the scrollport. */
+.menu-filter-bar {
+  position: sticky;
+  top: -4px;
+  margin: -4px -4px 4px;
+  padding: 4px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--stroke-light);
+}
+.menu-filter {
+  font: inherit;
+  font-size: 0.82rem;
+  width: 100%;
+  height: 30px;
+  padding: 0 1.7rem 0 0.55rem; /* right side clears the ✕ button */
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+}
+/* The custom ✕ replaces WebKit's native search-cancel icon. */
+.menu-filter::-webkit-search-cancel-button,
+.search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+/* Clear icon inside the input's right edge (the sticky bar anchors it). */
+.filter-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: none;
+  color: var(--ink-faint);
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0.25rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.filter-clear:hover {
+  color: var(--ink);
+  background: var(--gray-100);
+}
+.menu-filter::placeholder {
+  color: var(--ink-faint);
+}
+.menu-filter:focus-visible {
+  outline: 2px solid var(--and);
+  outline-offset: 1px;
+}
+.menu-empty {
+  color: var(--ink-faint);
+  font-size: 0.8rem;
+  font-style: italic;
+  padding: 0.4rem 0.6rem 0.15rem;
 }
 
 /* ---------- Condition (borderless rows) ---------- */
@@ -492,11 +723,11 @@ summary.inline-select:hover {
   padding: 0 0.55rem;
   border: 1px solid transparent;
   border-radius: 7px;
-  background: #f1f3f5;
+  background: var(--gray-100);
   color: var(--ink);
 }
 .num-input:hover {
-  background: #e9edf1;
+  background: var(--gray-200);
 }
 .num-input:focus-visible {
   outline: 2px solid var(--and);
@@ -511,12 +742,12 @@ select {
   padding: 0.34rem 0.55rem;
   border: 1px solid transparent;
   border-radius: 7px;
-  background: #f1f3f5;
+  background: var(--gray-100);
   color: var(--ink);
   cursor: pointer;
 }
 select:hover {
-  background: #e9edf1;
+  background: var(--gray-200);
 }
 select:focus-visible {
   outline: 2px solid var(--and);

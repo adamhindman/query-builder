@@ -2,7 +2,7 @@ import { el } from '../dom'
 import { PROPERTIES, getProperty } from '../data/properties'
 import type { Property } from '../data/schema'
 import type { Condition, ConditionOp, Group, Node } from '../query/model'
-import { newCondition, newGroup, isDescendant } from '../query/model'
+import { newCondition, newGroup, isDescendant, countConditions } from '../query/model'
 import type { QueryStore } from '../query/store'
 import {
   addChild,
@@ -26,10 +26,11 @@ const OP_LABELS: Record<ConditionOp, string> = {
 }
 
 /**
- * Drag-and-drop reordering is hidden for now. Flip to `true` to re-enable the
- * drag handles, drop zones, and draggable cards — all the wiring is intact.
+ * Drag-and-drop reordering: the sidebar appends new conditions to the root
+ * group, so dragging is how they reach their proper nested group. Flip to
+ * `false` to hide the drag handles, drop zones, and draggable cards.
  */
-const DND_ENABLED = false
+const DND_ENABLED = true
 
 /**
  * Drag state lives outside the tree: it's transient UI, not query data.
@@ -176,10 +177,17 @@ function renderNode(store: QueryStore, node: Node): HTMLElement {
 function renderCondition(store: QueryStore, cond: Condition): HTMLElement {
   const property = cond.propertyId ? getProperty(cond.propertyId) : undefined
 
-  const removeBtn = trashButton('Remove condition', () =>
-    store.update((s) => removeNode(s, cond.id)),
+  // The tree's last remaining condition can't be removed — an empty builder
+  // is pointless (the app opens with one blank condition for the same reason).
+  const soleCondition = countConditions(store.get()) === 1
+  const removeBtn = trashButton(
+    soleCondition ? "The last condition can't be removed" : 'Remove condition',
+    () => store.update((s) => removeNode(s, cond.id)),
+    soleCondition,
   )
 
+  // Filterable: 40+ properties — typing beats scrolling. Filters property
+  // labels only, never values (value search lives in the sidebar).
   const propertySelect = inlineSelect(
     'summary-property',
     property ? property.label : 'Choose a property…',
@@ -191,6 +199,7 @@ function renderCondition(store: QueryStore, cond: Condition): HTMLElement {
         if (p.id !== cond.propertyId) store.update((s) => setProperty(s, cond.id, p.id))
       },
     })),
+    true,
   )
 
   const row = el(
@@ -379,43 +388,115 @@ function textButton(label: string, onClick: () => void): HTMLElement {
 /**
  * Inline dropdown for collapsed condition rows: the summary is styled text
  * showing the current value; the list is a single-select menu.
+ *
+ * With `filterable`, the menu gets a filter input at its top: typing narrows
+ * the options (label substring, case-insensitive), Enter picks the first
+ * remaining one, and the filter resets each time the menu opens. Purely local
+ * DOM state — no store involvement, so no focus-stealing re-renders.
  */
 type InlineOption = { label: string; selected: boolean; onSelect: () => void }
 
-function inlineSelect(labelClass: string, labelText: string, options: InlineOption[]): HTMLElement {
-  return el(
+function inlineSelect(
+  labelClass: string,
+  labelText: string,
+  options: InlineOption[],
+  filterable = false,
+): HTMLElement {
+  const items = options.map((opt) =>
+    el(
+      'button',
+      {
+        type: 'button',
+        class: `menu-item${opt.selected ? ' selected' : ''}`,
+        onclick: (e: Event) => {
+          // Close the menu even when the pick is a no-op (no re-render).
+          ;(e.currentTarget as HTMLElement).closest('details')?.removeAttribute('open')
+          opt.onSelect()
+        },
+      },
+      opt.label,
+    ),
+  )
+
+  const emptyNote = el('div', { class: 'menu-empty' }, 'No matches')
+  const applyFilter = (q: string) => {
+    let any = false
+    items.forEach((item, i) => {
+      const show = options[i].label.toLowerCase().includes(q)
+      item.hidden = !show
+      if (show) any = true
+    })
+    emptyNote.hidden = any
+  }
+  applyFilter('')
+  const input = el('input', {
+    type: 'search',
+    class: 'menu-filter',
+    placeholder: 'Filter…',
+    'aria-label': 'Filter options',
+    oninput: () => {
+      applyFilter(input.value.trim().toLowerCase())
+      syncClear()
+    },
+    onkeydown: (e: Event) => {
+      if ((e as KeyboardEvent).key === 'Enter') items.find((item) => !item.hidden)?.click()
+    },
+  }) as HTMLInputElement
+  // Clear icon inside the input's right edge, shown only while there's text.
+  const clearBtn = el(
+    'button',
+    {
+      type: 'button',
+      class: 'filter-clear',
+      title: 'Clear filter',
+      'aria-label': 'Clear filter',
+      onclick: () => {
+        input.value = ''
+        applyFilter('')
+        syncClear()
+        input.focus()
+      },
+    },
+    '✕',
+  )
+  const syncClear = () => {
+    clearBtn.hidden = input.value === ''
+  }
+  syncClear()
+
+  const details = el(
     'details',
     { class: 'menu inline-menu', dataset: { nodrag: 'true' } },
     el('summary', { class: `inline-select ${labelClass}` }, labelText),
     el(
       'div',
       { class: 'menu-list' },
-      ...options.map((opt) =>
-        el(
-          'button',
-          {
-            type: 'button',
-            class: `menu-item${opt.selected ? ' selected' : ''}`,
-            onclick: (e: Event) => {
-              // Close the menu even when the pick is a no-op (no re-render).
-              ;(e.currentTarget as HTMLElement).closest('details')?.removeAttribute('open')
-              opt.onSelect()
-            },
-          },
-          opt.label,
-        ),
-      ),
+      filterable && el('div', { class: 'menu-filter-bar' }, input, clearBtn, emptyNote),
+      ...items,
     ),
-  )
+  ) as HTMLDetailsElement
+
+  // Reset + focus the filter each time the menu opens.
+  if (filterable) {
+    details.addEventListener('toggle', () => {
+      if (!details.open) return
+      input.value = ''
+      applyFilter('')
+      syncClear()
+      input.focus()
+    })
+  }
+  return details
 }
 
 /** Small outlined icon button with a trash-can glyph (inline SVG). */
-function trashButton(title: string, onClick: () => void): HTMLElement {
+function trashButton(title: string, onClick: () => void, disabled = false): HTMLElement {
   const btn = el('button', {
     type: 'button',
     class: 'icon-btn',
     title,
     'aria-label': title,
+    disabled,
     dataset: { nodrag: 'true' },
     onclick: onClick,
   })

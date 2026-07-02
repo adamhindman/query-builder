@@ -1,5 +1,5 @@
 import type { Group } from './model'
-import { newQuery } from './model'
+import { defaultQuery } from './model'
 
 /**
  * A minimal observable store holding the query tree.
@@ -13,7 +13,7 @@ export class QueryStore {
   private state: Group
   private listeners = new Set<Listener>()
 
-  constructor(initial: Group = newQuery()) {
+  constructor(initial: Group = defaultQuery()) {
     this.state = initial
   }
 

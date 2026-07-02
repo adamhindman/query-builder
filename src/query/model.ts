@@ -74,12 +74,8 @@ export function newGroup(combinator: Combinator = 'AND'): Group {
   return { kind: 'group', id: nextId('g'), combinator, exclude: false, children: [] }
 }
 
-/** An empty AND group — used for "Clear all" and the empty-state preset. */
-export function newQuery(): Group {
-  return newGroup('AND')
-}
-
-/** The default query shown on load: an AND group with one blank condition. */
+/** The default query shown on load and after "Clear all": an AND group with
+    one blank condition. The tree always keeps at least one condition. */
 export function defaultQuery(): Group {
   return { ...newGroup('AND'), children: [newCondition()] }
 }
@@ -87,6 +83,12 @@ export function defaultQuery(): Group {
 // ---------------------------------------------------------------------------
 // Read helpers
 // ---------------------------------------------------------------------------
+
+/** Total conditions in the subtree — the UI won't delete the tree's last one. */
+export function countConditions(root: Node): number {
+  if (root.kind === 'condition') return 1
+  return root.children.reduce((n, child) => n + countConditions(child), 0)
+}
 
 /** Depth-first search for a node by id. */
 export function findNode(root: Node, id: string): Node | undefined {
