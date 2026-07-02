@@ -26,7 +26,7 @@ const presetSelect = el(
       if (preset) store.update(() => preset.build())
     },
   },
-  el('option', { value: '', disabled: true, selected: true }, 'Load an example…'),
+  el('option', { value: '', disabled: true, selected: true }, 'Choose a sample query'),
   ...PRESETS.map((p) => el('option', { value: p.id }, p.label)),
 )
 
@@ -37,7 +37,10 @@ const shell = el(
     'header',
     { class: 'builder-header' },
     el('h1', {}, 'Query Builder'),
-    el('div', { class: 'header-tools' }, presetSelect,
+    el(
+      'div',
+      { class: 'header-tools' },
+      presetSelect,
       el(
         'button',
         {

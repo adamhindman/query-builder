@@ -334,8 +334,11 @@ summary.inline-select {
 }
 summary.inline-select::after {
   content: "▾";
-  font-size: 0.9em;
+  font-size: 1.2rem;
+  line-height: 1;
   color: var(--ink-faint);
+  /* The ▾ glyph sits low in its line box — nudge up to optically center it. */
+  margin-top: -2px;
 }
 summary.inline-select:hover {
   background: #e9edf1;

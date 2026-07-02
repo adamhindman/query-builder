@@ -2,9 +2,9 @@ import type { Condition, ConditionOp, Group, Node } from './model'
 import { newCondition, newGroup, newQuery } from './model'
 
 /**
- * Ready-made queries for exercising every feature of the builder. Each is
- * built fresh from the model factories (so ids stay unique) and then has its
- * fields filled in.
+ * Ready-made queries for the "Load an example" picker — realistic cohort
+ * definitions over the ELITE-47 schema. Each is built fresh from the model
+ * factories (so ids stay unique) and then has its fields filled in.
  */
 
 function cond(propertyId: string, op: ConditionOp, valueIds: string[]): Condition {
@@ -15,19 +15,15 @@ function boolCond(propertyId: string, value: boolean): Condition {
   return { ...newCondition(), propertyId, bool: value }
 }
 
-function rangeCond(propertyId: string, min: number | null, max: number | null): Condition {
-  return { ...newCondition(), propertyId, range: { min, max } }
-}
-
 function minCond(propertyId: string, minimum: number): Condition {
   return { ...newCondition(), propertyId, minimum }
 }
 
-function group(
-  combinator: Group['combinator'],
-  exclude: boolean,
-  children: Node[],
-): Group {
+function rangeCond(propertyId: string, min: number | null, max: number | null): Condition {
+  return { ...newCondition(), propertyId, range: { min, max } }
+}
+
+function group(combinator: Group['combinator'], exclude: boolean, children: Node[]): Group {
   return { ...newGroup(combinator), exclude, children }
 }
 
@@ -37,8 +33,6 @@ export type Preset = {
   build: () => Group
 }
 
-// Presets use only fully-defined fields (age enum, booleans, range, minimum) —
-// the multiselect fields have no option values yet (see properties.ts TODOs).
 export const PRESETS: Preset[] = [
   {
     id: 'empty',
@@ -46,68 +40,132 @@ export const PRESETS: Preset[] = [
     build: () => newQuery(),
   },
   {
-    id: 'multiple-conditions',
-    label: 'Multiple conditions',
+    id: 'ad-biomarker',
+    label: "Alzheimer's cases with biomarkers",
     build: () =>
       group('AND', false, [
-        cond('age', 'any', ['85_89', '90plus']),
-        boolCond('hasDementia', true),
+        cond('diagnosis', 'any', ['alzheimers', 'mci']),
+        boolCond('hasBiomarkerData', true),
+        boolCond('hasCognitiveAssessment', true),
+      ]),
+  },
+  {
+    id: 'apoe-e4',
+    label: 'APOE-e4 carriers, 75+',
+    build: () =>
+      group('AND', false, [
+        cond('apoeGenotype', 'any', ['e3_e4', 'e4_e4']),
+        cond('age', 'any', ['75_79', '80_84', '85_89', '90plus']),
+        cond('diagnosis', 'none', ['control']),
+      ]),
+  },
+  {
+    id: 'cardiometabolic',
+    label: 'Cardiometabolic multimorbidity',
+    build: () =>
+      group('AND', false, [
+        boolCond('hasDiabetes', true),
+        boolCond('hasCVD', true),
+        group('OR', false, [
+          boolCond('hasMI', true),
+          boolCond('hasStroke', true),
+          boolCond('hasCHF', true),
+        ]),
+      ]),
+  },
+  {
+    id: 'longevity',
+    label: 'Longevity cohort, living 90+',
+    build: () =>
+      group('AND', false, [
+        cond('cohort', 'any', ['llfs', 'centenarian']),
+        cond('age', 'any', ['90plus']),
         boolCond('mortalityStatus', false),
       ]),
   },
   {
-    id: 'conditions-and-groups',
-    label: 'Conditions + multiple groups',
+    id: 'dementia-methylation',
+    label: 'Dementia case–control, methylation data',
     build: () =>
       group('AND', false, [
-        cond('age', 'any', ['80_84', '85_89', '90plus']),
-        group('AND', false, [
-          boolCond('hasCVD', true),
-          boolCond('hasDiabetes', true),
+        group('OR', false, [
+          cond('diagnosis', 'any', ['alzheimers', 'vascular_dementia', 'lewy_body', 'ftd']),
+          cond('diagnosis', 'any', ['control']),
         ]),
-        group('AND', false, [minCond('visitCode', 2)]),
+        cond('dataType', 'any', ['dna_methylation']),
+        cond('assayType', 'any', ['methylation_array']),
+        minCond('visitCode', 2),
       ]),
   },
   {
-    id: 'mixed-and-or',
-    label: 'Mix of AND / OR groups',
+    id: 'female-ad-excl',
+    label: "Female Alzheimer's, excluding other neurodegeneration",
     build: () =>
       group('AND', false, [
-        boolCond('hasBiomarkerData', true),
-        group('OR', false, [
-          boolCond('hasDiabetes', true),
-          boolCond('hasCVD', true),
+        cond('sex', 'any', ['female']),
+        cond('diagnosis', 'any', ['alzheimers']),
+        group('OR', true, [
+          // excluded (NOT): drop anyone with a competing neurodegenerative dx
+          boolCond('hasParkinsons', true),
+          cond('diagnosis', 'any', ['lewy_body']),
         ]),
-        group('AND', false, [
-          cond('age', 'any', ['85_89', '90plus']),
-          group('OR', false, [
-            boolCond('hasStroke', true),
-            boolCond('hasTIA', true),
+      ]),
+  },
+  {
+    id: 'multiomics-discovery',
+    label: 'Multi-omics discovery cohort',
+    // Three levels of nesting: a case/control set that must have ANY one of
+    // three full modality combinations available, minus a couple of exclusions.
+    build: () =>
+      group('AND', false, [
+        cond('diagnosis', 'any', ['alzheimers', 'mci', 'control']),
+        cond('apoeGenotype', 'any', ['e3_e4', 'e4_e4']),
+        group('OR', false, [
+          group('AND', false, [
+            cond('dataType', 'any', ['dna_methylation']),
+            cond('assayType', 'any', ['methylation_array']),
+          ]),
+          group('AND', false, [
+            cond('dataType', 'any', ['gene_expression']),
+            cond('assayType', 'any', ['rnaseq', 'scrnaseq']),
+          ]),
+          group('AND', false, [
+            cond('dataType', 'any', ['protein_abundance']),
+            cond('assayType', 'any', ['proteomics']),
           ]),
         ]),
-      ]),
-  },
-  {
-    id: 'input-types',
-    label: 'Other input types',
-    build: () =>
-      group('AND', false, [
-        boolCond('hasDementia', true), // boolean: Yes/No pills
-        rangeCond('fieldCenterCode', 1, 20), // range: two number inputs
-        minCond('visitCode', 2), // minimum: "at least" + N+ dropdown
-        cond('age', 'any', ['75_79', '80_84']), // enum, for contrast
-      ]),
-  },
-  {
-    id: 'exclusions',
-    label: 'Excluded group',
-    build: () =>
-      group('AND', false, [
-        cond('age', 'any', ['85_89', '90plus']),
         group('OR', true, [
-          // excluded group (NOT)
+          // excluded (NOT)
+          cond('diagnosis', 'any', ['other']),
+          boolCond('mortalityStatus', true),
+        ]),
+      ]),
+  },
+  {
+    id: 'matched-controls',
+    label: 'Matched female controls across cohorts',
+    // Mixes every input kind: enum, age bins, minimum visits, boolean, range,
+    // nested OR of AND groups, plus an excluded comorbidity group.
+    build: () =>
+      group('AND', false, [
+        cond('sex', 'any', ['female']),
+        cond('age', 'any', ['80_84', '85_89', '90plus']),
+        group('OR', false, [
+          group('AND', false, [
+            cond('cohort', 'any', ['llfs']),
+            minCond('visitCode', 3),
+          ]),
+          group('AND', false, [
+            cond('cohort', 'any', ['chs', 'sof']),
+            boolCond('hasCognitiveAssessment', true),
+            rangeCond('fieldCenterCode', 1, 15),
+          ]),
+        ]),
+        group('OR', true, [
+          // excluded (NOT): no major cardiovascular / oncologic history
           boolCond('hasCancer', true),
-          boolCond('hasDementia', true),
+          boolCond('hasStroke', true),
+          boolCond('hasMI', true),
         ]),
       ]),
   },
