@@ -34,13 +34,31 @@ function summarizeCondition(cond: Condition): string {
   const property = cond.propertyId ? getProperty(cond.propertyId) : undefined
   if (!property) return '(unset condition)'
 
-  const labels = cond.valueIds
-    .map((id) => property.values.find((v) => v.id === id)?.label)
-    .filter((l): l is string => !!l)
-
-  if (labels.length === 0) return `${property.label} (no values)`
-
-  return `${property.label} ${OP_PHRASE[cond.op]} ${labels.join(', ')}`
+  switch (property.kind) {
+    case 'enum': {
+      const labels = cond.valueIds
+        .map((id) => property.values.find((v) => v.id === id)?.label)
+        .filter((l): l is string => !!l)
+      if (labels.length === 0) return `${property.label} (no values)`
+      return `${property.label} ${OP_PHRASE[cond.op]} ${labels.join(', ')}`
+    }
+    case 'boolean': {
+      if (cond.bool == null) return `${property.label} (no value)`
+      return `${property.label} is ${cond.bool ? 'Yes' : 'No'}`
+    }
+    case 'range': {
+      const { min, max } = cond.range
+      const unit = property.unit ? ` ${property.unit}` : ''
+      if (min == null && max == null) return `${property.label} (no value)`
+      if (min != null && max != null) return `${property.label} is between ${min} and ${max}${unit}`
+      if (min != null) return `${property.label} is at least ${min}${unit}`
+      return `${property.label} is at most ${max}${unit}`
+    }
+    case 'minimum': {
+      if (cond.minimum == null) return `${property.label} (no value)`
+      return `${property.label} is at least ${cond.minimum}`
+    }
+  }
 }
 
 const OP_PHRASE: Record<Condition['op'], string> = {

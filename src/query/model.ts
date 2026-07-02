@@ -24,9 +24,16 @@ export type Condition = {
   id: string
   /** Property being filtered on, or `null` until the user picks one. */
   propertyId: string | null
+  /** Operator — only meaningful for enum properties. */
   op: ConditionOp
-  /** Selected value ids for the chosen property. */
+  /** Selected value ids (enum properties). */
   valueIds: string[]
+  /** Yes/No selection (boolean properties); null = unset. */
+  bool: boolean | null
+  /** Min/max bounds (range properties); either side may be null. */
+  range: { min: number | null; max: number | null }
+  /** "At least N" threshold (minimum properties); null = unset. */
+  minimum: number | null
 }
 
 export type Group = {
@@ -51,7 +58,16 @@ function nextId(prefix: string): string {
 }
 
 export function newCondition(): Condition {
-  return { kind: 'condition', id: nextId('c'), propertyId: null, op: 'any', valueIds: [] }
+  return {
+    kind: 'condition',
+    id: nextId('c'),
+    propertyId: null,
+    op: 'any',
+    valueIds: [],
+    bool: null,
+    range: { min: null, max: null },
+    minimum: null,
+  }
 }
 
 export function newGroup(combinator: Combinator = 'AND'): Group {
@@ -143,10 +159,29 @@ export function clearGroup(root: Group, groupId: string): Group {
 }
 
 export function setProperty(root: Group, condId: string, propertyId: string): Group {
-  // Changing property invalidates the operator's values, so reset them.
+  // Changing property invalidates every kind of stored value, so reset all.
   return update(root, condId, (n) =>
-    n.kind === 'condition' ? { ...n, propertyId, valueIds: [] } : n,
+    n.kind === 'condition'
+      ? { ...n, propertyId, valueIds: [], bool: null, range: { min: null, max: null }, minimum: null }
+      : n,
   )
+}
+
+export function setBool(root: Group, condId: string, value: boolean | null): Group {
+  return update(root, condId, (n) => (n.kind === 'condition' ? { ...n, bool: value } : n))
+}
+
+export function setRange(
+  root: Group,
+  condId: string,
+  min: number | null,
+  max: number | null,
+): Group {
+  return update(root, condId, (n) => (n.kind === 'condition' ? { ...n, range: { min, max } } : n))
+}
+
+export function setMinimum(root: Group, condId: string, minimum: number | null): Group {
+  return update(root, condId, (n) => (n.kind === 'condition' ? { ...n, minimum } : n))
 }
 
 export function setOp(root: Group, condId: string, op: ConditionOp): Group {

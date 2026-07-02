@@ -97,6 +97,16 @@ body {
 .group:hover:not(.root):not(:has(.group:hover)) {
   background: #f6f7f9;
 }
+/* On the tinted background, the grey inputs would melt away — darken them a
+   step (and their hover a step further) so they stay visible. */
+.group:hover:not(.root):not(:has(.group:hover)) summary.inline-select,
+.group:hover:not(.root):not(:has(.group:hover)) .num-input {
+  background: #e9edf1;
+}
+.group:hover:not(.root):not(:has(.group:hover)) summary.inline-select:hover,
+.group:hover:not(.root):not(:has(.group:hover)) .num-input:hover {
+  background: #dfe3e9;
+}
 
 /* The combinator pill heads the group. */
 .group-head {
@@ -134,7 +144,7 @@ body {
 
 /* Lines are dimmed — structure should read without shouting. */
 .group-bracket {
-  --bracket-line: color-mix(in srgb, var(--bracket-color) 55%, #fff);
+  --bracket-line: color-mix(in srgb, var(--bracket-color) 40%, #fff);
 }
 /* Main line: elbows inward at its end to point at the last child. */
 .bracket-line {
@@ -446,6 +456,35 @@ summary.inline-select:hover {
   background: var(--exclude-soft);
   border-color: var(--exclude);
   color: var(--exclude);
+}
+
+/* Connective words in non-enum conditions ("is between", "and", "at least",
+   units) — plain muted text, matching the operator's tone. */
+.input-word {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* Number input (range conditions), matching the inline selectors' look. */
+.num-input {
+  font: inherit;
+  font-size: 0.85rem;
+  height: 30px;
+  width: 5.5rem;
+  padding: 0 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: #f1f3f5;
+  color: var(--ink);
+}
+.num-input:hover {
+  background: #e9edf1;
+}
+.num-input:focus-visible {
+  outline: 2px solid var(--and);
+  outline-offset: 1px;
+  background: var(--surface);
 }
 
 /* Native select — used only by the header's preset picker. */

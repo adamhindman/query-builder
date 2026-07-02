@@ -10,6 +10,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'class',
     label: 'Class',
+    kind: 'enum',
     ordered: false,
     values: [
       { id: 'mammal', label: 'Mammal' },
@@ -23,6 +24,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'habitat',
     label: 'Habitat',
+    kind: 'enum',
     ordered: false,
     values: [
       { id: 'forest', label: 'Forest' },
@@ -39,6 +41,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'diet',
     label: 'Diet',
+    kind: 'enum',
     ordered: false,
     values: [
       { id: 'herbivore', label: 'Herbivore' },
@@ -51,6 +54,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'conservation',
     label: 'Conservation status',
+    kind: 'enum',
     ordered: true,
     values: [
       { id: 'lc', label: 'Least concern' },
@@ -64,6 +68,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'size',
     label: 'Size',
+    kind: 'enum',
     ordered: true,
     values: [
       { id: 'tiny', label: 'Tiny (< 10 cm)' },
@@ -76,6 +81,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'activity',
     label: 'Activity pattern',
+    kind: 'enum',
     ordered: false,
     values: [
       { id: 'diurnal', label: 'Diurnal' },
@@ -87,6 +93,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'continent',
     label: 'Continent',
+    kind: 'enum',
     ordered: false,
     values: [
       { id: 'africa', label: 'Africa' },
@@ -101,6 +108,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'legs',
     label: 'Number of legs',
+    kind: 'enum',
     ordered: true,
     values: [
       { id: '0', label: '0 (legless)' },
@@ -113,6 +121,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'lifespan',
     label: 'Lifespan',
+    kind: 'enum',
     ordered: true,
     values: [
       { id: 'lt1', label: 'Under 1 year' },
@@ -127,6 +136,7 @@ export const PROPERTIES: Property[] = [
     // property with many options.
     id: 'order',
     label: 'Taxonomic order',
+    kind: 'enum',
     ordered: false,
     values: [
       { id: 'carnivora', label: 'Carnivora' },
@@ -160,6 +170,23 @@ export const PROPERTIES: Property[] = [
       { id: 'octopoda', label: 'Octopoda' },
       { id: 'perciformes', label: 'Perciformes' },
     ],
+  },
+  {
+    id: 'venomous',
+    label: 'Venomous',
+    kind: 'boolean',
+  },
+  {
+    id: 'weight',
+    label: 'Weight',
+    kind: 'range',
+    unit: 'kg',
+  },
+  {
+    id: 'litter',
+    label: 'Litter size',
+    kind: 'minimum',
+    options: [1, 2, 3, 4],
   },
 ]
 

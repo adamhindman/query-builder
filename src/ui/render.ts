@@ -1,5 +1,6 @@
 import { el } from '../dom'
 import { PROPERTIES, getProperty } from '../data/properties'
+import type { Property } from '../data/schema'
 import type { Condition, ConditionOp, Group, Node } from '../query/model'
 import { newCondition, newGroup, isDescendant } from '../query/model'
 import type { QueryStore } from '../query/store'
@@ -8,9 +9,12 @@ import {
   clearGroup,
   moveNode,
   removeNode,
+  setBool,
   setCombinator,
+  setMinimum,
   setOp,
   setProperty,
+  setRange,
   toggleExclude,
   toggleValue,
 } from '../query/model'
@@ -189,12 +193,47 @@ function renderCondition(store: QueryStore, cond: Condition): HTMLElement {
     })),
   )
 
-  // All of the property's values stay on screen as toggle pills — selection
-  // state is always visible, and there are no editing modes to switch between.
-  // "is none of" selections are exclusions — carry the red NOT color language
-  // through to the selected pills.
-  const values = property
-    ? el(
+  const row = el(
+    'div',
+    { class: 'condition-summary' },
+    removeBtn,
+    propertySelect,
+    ...(property
+      ? conditionControls(store, cond, property)
+      : [el('span', { class: 'values-placeholder' }, 'Pick a property to choose values.')]),
+  )
+
+  const card = el(
+    'div',
+    {
+      class: `condition${property ? '' : ' unset'}`,
+      dataset: { id: cond.id },
+      draggable: DND_ENABLED,
+    },
+    DND_ENABLED && dragHandle(),
+    row,
+  )
+
+  if (DND_ENABLED) attachDragSource(card, cond.id)
+  return card
+}
+
+/** The operator/value controls for a condition, chosen by the property kind. */
+function conditionControls(store: QueryStore, cond: Condition, property: Property): HTMLElement[] {
+  switch (property.kind) {
+    case 'enum': {
+      const opSelect = inlineSelect(
+        'summary-op',
+        OP_LABELS[cond.op],
+        (Object.keys(OP_LABELS) as ConditionOp[]).map((op) => ({
+          label: OP_LABELS[op],
+          selected: op === cond.op,
+          onSelect: () => store.update((s) => setOp(s, cond.id, op)),
+        })),
+      )
+      // All values stay on screen as toggle pills — selection state is always
+      // visible. "is none of" selections are exclusions, so they read red.
+      const pills = el(
         'span',
         { class: `value-pills${cond.op === 'none' ? ' negated' : ''}` },
         ...property.values.map((v) => {
@@ -211,39 +250,79 @@ function renderCondition(store: QueryStore, cond: Condition): HTMLElement {
           )
         }),
       )
-    : el('span', { class: 'values-placeholder' }, 'Pick a property to choose values.')
+      return [opSelect, pills]
+    }
 
-  const row = el(
-    'div',
-    { class: 'condition-summary' },
-    removeBtn,
-    propertySelect,
-    property &&
-      inlineSelect(
-        'summary-op',
-        OP_LABELS[cond.op],
-        (Object.keys(OP_LABELS) as ConditionOp[]).map((op) => ({
-          label: OP_LABELS[op],
-          selected: op === cond.op,
-          onSelect: () => store.update((s) => setOp(s, cond.id, op)),
-        })),
-      ),
-    values,
-  )
+    case 'boolean': {
+      // Yes/No pill pair, single-select; clicking the active one clears it.
+      const pill = (value: boolean, label: string) =>
+        el(
+          'button',
+          {
+            type: 'button',
+            class: `value-pill${cond.bool === value ? ' selected' : ''}`,
+            'aria-pressed': String(cond.bool === value),
+            onclick: () =>
+              store.update((s) => setBool(s, cond.id, cond.bool === value ? null : value)),
+          },
+          label,
+        )
+      return [el('span', { class: 'value-pills' }, pill(true, 'Yes'), pill(false, 'No'))]
+    }
 
-  const card = el(
-    'div',
-    {
-      class: `condition${property ? '' : ' unset'}`,
-      dataset: { id: cond.id },
-      draggable: DND_ENABLED,
+    case 'range': {
+      return [
+        el('span', { class: 'input-word' }, 'is between'),
+        numberInput(cond.range.min, 'min', (v) =>
+          store.update((s) => setRange(s, cond.id, v, cond.range.max)),
+        ),
+        el('span', { class: 'input-word' }, 'and'),
+        numberInput(cond.range.max, 'max', (v) =>
+          store.update((s) => setRange(s, cond.id, cond.range.min, v)),
+        ),
+        ...(property.unit ? [el('span', { class: 'input-word' }, property.unit)] : []),
+      ]
+    }
+
+    case 'minimum': {
+      return [
+        el('span', { class: 'input-word' }, 'at least'),
+        inlineSelect(
+          'summary-op',
+          cond.minimum == null ? 'Choose…' : `${cond.minimum}+`,
+          property.options.map((n) => ({
+            label: `${n}+`,
+            selected: cond.minimum === n,
+            onSelect: () => store.update((s) => setMinimum(s, cond.id, n)),
+          })),
+        ),
+      ]
+    }
+  }
+}
+
+/**
+ * Number input that commits on change (blur/Enter), NOT on every keystroke —
+ * each store update triggers a full re-render, which would steal focus
+ * mid-typing.
+ */
+function numberInput(
+  value: number | null,
+  placeholder: string,
+  onCommit: (v: number | null) => void,
+): HTMLElement {
+  return el('input', {
+    type: 'number',
+    class: 'num-input',
+    dataset: { nodrag: 'true' },
+    value: value == null ? '' : String(value),
+    placeholder,
+    onchange: (e: Event) => {
+      const raw = (e.target as HTMLInputElement).value.trim()
+      const parsed = raw === '' ? null : Number(raw)
+      onCommit(parsed == null || Number.isNaN(parsed) ? null : parsed)
     },
-    DND_ENABLED && dragHandle(),
-    row,
-  )
-
-  if (DND_ENABLED) attachDragSource(card, cond.id)
-  return card
+  })
 }
 
 // ---------------------------------------------------------------------------

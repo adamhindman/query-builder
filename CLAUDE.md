@@ -59,18 +59,22 @@ confirmed in words. Keep this feature.
 ## Data contract (schema)
 
 Properties are the queryable fields. The shape matters; the specific content is
-placeholder (see "Not part of the product").
+placeholder (see "Not part of the product"). A property's `kind` determines the
+input UI:
 
 ```ts
 type PropertyValue = { id: string; label: string }
-type Property = {
-  id: string
-  label: string
-  ordered: boolean          // metadata for value ordering; not currently surfaced in UI
-  values: PropertyValue[]
-}
+type Property =
+  | { id; label; kind: 'enum'; ordered: boolean; values: PropertyValue[] }
+  | { id; label; kind: 'boolean' }                       // Yes/No
+  | { id; label; kind: 'range'; unit?: string }          // min/max numbers
+  | { id; label; kind: 'minimum'; options: number[] }    // "at least N+"
 ```
 
+- **enum** — multi-select from fixed values, with the any/all/none operator.
+  (`ordered` is inert metadata for a possible future range-style operator.)
+- **boolean / range / minimum** — **no operator**; the value input carries the
+  whole meaning.
 - **No per-option counts.** Production won't have per-value match counts, so
   values carry only `id` + `label`. Don't reintroduce counts.
 
@@ -83,11 +87,21 @@ returns a new tree and never mutates the input:
 
 ```ts
 type Combinator = 'AND' | 'OR'
-type ConditionOp = 'any' | 'all' | 'none'
-type Condition = { kind: 'condition'; id; propertyId: string | null; op; valueIds: string[] }
-type Group     = { kind: 'group'; id; combinator; exclude: boolean; children: Node[] }
-type Node      = Condition | Group
+type ConditionOp = 'any' | 'all' | 'none'   // enum properties only
+type Condition = {
+  kind: 'condition'; id; propertyId: string | null
+  op: ConditionOp            // enum
+  valueIds: string[]         // enum
+  bool: boolean | null       // boolean
+  range: { min: number | null; max: number | null }  // range
+  minimum: number | null     // minimum
+}
+type Group = { kind: 'group'; id; combinator; exclude: boolean; children: Node[] }
+type Node  = Condition | Group
 ```
+
+A condition holds one value slot per property kind; only the slot matching its
+property's kind is meaningful. Changing property resets **all** slots.
 
 - Tree edits are pure functions (`setCombinator`, `toggleExclude`, `addChild`,
   `removeNode`, `clearGroup`, `setProperty`, `setOp`, `toggleValue`, `moveNode`),
@@ -143,7 +157,7 @@ preserve them.
        doesn't happen; if the layout gains such content, drive the pass with a
        `ResizeObserver`/`requestAnimationFrame` instead of just resize.
    - It is **colored by the group's own state** — blue (AND), amber (OR), red
-     (excluded) — but **dimmed** (2px, the state color mixed ~55% toward
+     (excluded) — but **dimmed** (2px, the state color mixed ~40% toward
      white): structure should read without shouting. Scope color rules to the
      group's *own* bracket (direct-child selectors), so an excluded/OR group
      does **not** recolor nested groups' brackets.
@@ -170,6 +184,15 @@ preserve them.
    - When the operator is **"is none of"**, selected pills are **red** instead
      of blue — the selection is an exclusion, and red = NOT everywhere in the
      design.
+   - **Non-enum kinds have no operator dropdown**; muted connective words
+     supply the grammar instead:
+     - *boolean*: a **Yes / No pill pair** (same pill style), single-select;
+       clicking the active pill clears it.
+     - *range*: "is between" **[number input]** "and" **[number input]** +
+       optional unit label. Inputs commit **on change (blur/Enter), never on
+       keystroke** — every store update fully re-renders, which would steal
+       focus mid-typing.
+     - *minimum*: "at least" + a dropdown of thresholds rendered as **N+**.
    - A condition with **no property yet** shows only the property picker and a
      placeholder, **muted via color — never opacity**: opacity < 1 creates a
      stacking context that traps the row's dropdowns underneath later sibling
@@ -193,7 +216,9 @@ preserve them.
   **innermost** hovered group, via pure CSS:
   `.group:hover:not(:has(.group:hover))` (a plain `:hover` would tint every
   ancestor at once). The **root is exempt** — it spans everything, so the tint
-  adds nothing.
+  adds nothing. On the tinted background the grey inputs would melt away, so
+  the same selector **darkens the dropdown/number inputs one step** (and their
+  own hover a step further).
 - **Consistent control height (30px)** across all row controls — head-row
   pills, inline selectors, and the trash buttons — so every row reads as one
   aligned line, with `--ink-soft`-level contrast (not faint grey).
@@ -241,7 +266,12 @@ changes the query's logic** (different combinator / exclude / nesting).
   unique per session. They're for reconciling edits, not persistence.
 - **Value selection** is the row of always-visible toggle pills (see design
   section) — `aria-pressed` buttons, shown only once a property is chosen;
-  before that, a "pick a property" placeholder shows.
+  before that, a "pick a property" placeholder shows. Non-enum kinds swap in
+  their own controls (Yes/No pills, number inputs, N+ dropdown).
+- **Summary phrasing per kind:** enum `is any/all/none of …`; boolean
+  `is Yes/No`; range `is between X and Y unit` (or `at least X` / `at most Y`
+  when one side is empty); minimum `is at least N`. Unset values read as
+  `(no value)`.
 - **Partial/empty states render gracefully:** a condition with no property, or a
   property with no values selected, still renders and appears in the summary as
   a clearly-unfinished clause rather than breaking.

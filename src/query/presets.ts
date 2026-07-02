@@ -11,6 +11,18 @@ function cond(propertyId: string, op: ConditionOp, valueIds: string[]): Conditio
   return { ...newCondition(), propertyId, op, valueIds }
 }
 
+function boolCond(propertyId: string, value: boolean): Condition {
+  return { ...newCondition(), propertyId, bool: value }
+}
+
+function rangeCond(propertyId: string, min: number | null, max: number | null): Condition {
+  return { ...newCondition(), propertyId, range: { min, max } }
+}
+
+function minCond(propertyId: string, minimum: number): Condition {
+  return { ...newCondition(), propertyId, minimum }
+}
+
 function group(
   combinator: Group['combinator'],
   exclude: boolean,
@@ -73,6 +85,17 @@ export const PRESETS: Preset[] = [
             cond('size', 'any', ['huge']),
           ]),
         ]),
+      ]),
+  },
+  {
+    id: 'input-types',
+    label: 'Other input types',
+    build: () =>
+      group('AND', false, [
+        boolCond('venomous', true), // boolean: Yes/No pills
+        rangeCond('weight', 5, 500), // range: two number inputs
+        minCond('litter', 2), // minimum: "at least" + N+ dropdown
+        cond('class', 'any', ['reptile', 'amphibian']), // enum, for contrast
       ]),
   },
   {
