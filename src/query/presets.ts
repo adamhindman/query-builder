@@ -37,6 +37,8 @@ export type Preset = {
   build: () => Group
 }
 
+// Presets use only fully-defined fields (age enum, booleans, range, minimum) —
+// the multiselect fields have no option values yet (see properties.ts TODOs).
 export const PRESETS: Preset[] = [
   {
     id: 'empty',
@@ -48,9 +50,9 @@ export const PRESETS: Preset[] = [
     label: 'Multiple conditions',
     build: () =>
       group('AND', false, [
-        cond('class', 'any', ['mammal', 'bird']),
-        cond('habitat', 'any', ['forest', 'rainforest', 'wetland']),
-        cond('diet', 'none', ['filter_feeder']),
+        cond('age', 'any', ['85_89', '90plus']),
+        boolCond('hasDementia', true),
+        boolCond('mortalityStatus', false),
       ]),
   },
   {
@@ -58,14 +60,12 @@ export const PRESETS: Preset[] = [
     label: 'Conditions + multiple groups',
     build: () =>
       group('AND', false, [
-        cond('class', 'any', ['mammal', 'reptile']),
+        cond('age', 'any', ['80_84', '85_89', '90plus']),
         group('AND', false, [
-          cond('habitat', 'any', ['desert', 'grassland']),
-          cond('size', 'any', ['large', 'huge']),
+          boolCond('hasCVD', true),
+          boolCond('hasDiabetes', true),
         ]),
-        group('AND', false, [
-          cond('conservation', 'any', ['vu', 'en', 'cr']),
-        ]),
+        group('AND', false, [minCond('visitCode', 2)]),
       ]),
   },
   {
@@ -73,16 +73,16 @@ export const PRESETS: Preset[] = [
     label: 'Mix of AND / OR groups',
     build: () =>
       group('AND', false, [
-        cond('continent', 'any', ['africa']),
+        boolCond('hasBiomarkerData', true),
         group('OR', false, [
-          cond('diet', 'any', ['carnivore']),
-          cond('diet', 'any', ['omnivore']),
+          boolCond('hasDiabetes', true),
+          boolCond('hasCVD', true),
         ]),
         group('AND', false, [
-          cond('activity', 'any', ['nocturnal']),
+          cond('age', 'any', ['85_89', '90plus']),
           group('OR', false, [
-            cond('size', 'any', ['large']),
-            cond('size', 'any', ['huge']),
+            boolCond('hasStroke', true),
+            boolCond('hasTIA', true),
           ]),
         ]),
       ]),
@@ -92,10 +92,10 @@ export const PRESETS: Preset[] = [
     label: 'Other input types',
     build: () =>
       group('AND', false, [
-        boolCond('venomous', true), // boolean: Yes/No pills
-        rangeCond('weight', 5, 500), // range: two number inputs
-        minCond('litter', 2), // minimum: "at least" + N+ dropdown
-        cond('class', 'any', ['reptile', 'amphibian']), // enum, for contrast
+        boolCond('hasDementia', true), // boolean: Yes/No pills
+        rangeCond('fieldCenterCode', 1, 20), // range: two number inputs
+        minCond('visitCode', 2), // minimum: "at least" + N+ dropdown
+        cond('age', 'any', ['75_79', '80_84']), // enum, for contrast
       ]),
   },
   {
@@ -103,12 +103,11 @@ export const PRESETS: Preset[] = [
     label: 'Excluded group',
     build: () =>
       group('AND', false, [
-        cond('class', 'any', ['mammal']),
-        cond('habitat', 'none', ['ocean', 'freshwater']), // exclusion via "is none of"
+        cond('age', 'any', ['85_89', '90plus']),
         group('OR', true, [
           // excluded group (NOT)
-          cond('conservation', 'any', ['ew']),
-          cond('continent', 'any', ['antarctica']),
+          boolCond('hasCancer', true),
+          boolCond('hasDementia', true),
         ]),
       ]),
   },
