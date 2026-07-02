@@ -1,0 +1,539 @@
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --ink: #1f2430;
+  --ink-soft: #5b6472;
+  --ink-faint: #8a93a3;
+  --ink-faintest: #aeb6c1;
+  --line: #e3e7ec;
+  --stroke-light: #ebedf1;
+
+  --and: #2563eb; /* blue  */
+  --and-soft: #eaf1ff;
+  --or: #b45309; /* amber, dark enough for white text on the active pill */
+  --or-soft: #fff4e2;
+  --exclude: #dc2626; /* red */
+  --exclude-soft: #fdecec;
+
+  --radius: 10px;
+  --radius-sm: 7px;
+
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+/* ---------- Shell ---------- */
+
+.builder {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.builder-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.builder-header h1 {
+  font-size: 1.4rem;
+  margin: 0;
+  font-weight: 650;
+}
+
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.preset-select {
+  font-size: 0.85rem;
+}
+
+.clear-btn {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.clear-btn:hover {
+  color: var(--exclude);
+}
+
+/* ---------- Group ---------- */
+
+/* No visible container box — groups are structured by bracket + indentation.
+   Every level shares the same padding, so toggling Exclude only changes the
+   color, not the layout; excluded groups add a faint red tint. */
+.group {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius);
+  padding: 0.2rem 0.5rem 0.25rem;
+}
+/* Exclusion reads from the red bracket + the red "Excluded (NOT)" pill —
+   no background fill. */
+
+/* The innermost hovered group shows its extent. :hover matches the whole
+   ancestor chain, so exclude any group that contains another hovered group —
+   what's left is the innermost one. The root is exempt: it spans the whole
+   builder, so tinting it adds nothing. */
+.group:hover:not(.root):not(:has(.group:hover)) {
+  background: #f6f7f9;
+}
+
+/* The combinator pill heads the group. */
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0 0.3rem;
+}
+
+/* The bracket is absolutely positioned so its height can be measured to end at
+   the last child's center; content reserves the left space it occupies. */
+.group-lower {
+  position: relative;
+}
+
+/* The bracket: a vertical line from just below the pill to the last child's
+   center, with a curved branch pointing at every child. The line and branches
+   (.bracket-line / .bracket-tick) are measured and drawn in JS; this container
+   just anchors them and carries the color. Scoped to the group's OWN bracket
+   (direct child) so an excluded/OR group doesn't recolor nested brackets. */
+.group-bracket {
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  width: 22px;
+  --bracket-color: var(--and);
+}
+.group.or > .group-lower > .group-bracket {
+  --bracket-color: var(--or);
+}
+.group.excluded > .group-lower > .group-bracket {
+  --bracket-color: var(--exclude);
+}
+
+/* Lines are dimmed — structure should read without shouting. */
+.group-bracket {
+  --bracket-line: color-mix(in srgb, var(--bracket-color) 55%, #fff);
+}
+/* Main line: elbows inward at its end to point at the last child. */
+.bracket-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  border-left: 2px solid var(--bracket-line);
+  border-bottom: 2px solid var(--bracket-line);
+  border-radius: 0 0 0 9px;
+}
+/* Branch: same inward curve, one per remaining child (top/height set in JS). */
+.bracket-tick {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  border-left: 2px solid var(--bracket-line);
+  border-bottom: 2px solid var(--bracket-line);
+  border-radius: 0 0 0 9px;
+}
+
+.group-content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 0.5rem 0.15rem 40px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.empty-hint {
+  color: var(--ink-faint);
+  font-size: 0.85rem;
+  padding: 0.35rem 0.15rem;
+  font-style: italic;
+}
+
+/* ---------- Segmented AND / OR ---------- */
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.seg {
+  border: none;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-weight: 650;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  padding: 0.32rem 0.7rem;
+  cursor: pointer;
+}
+.seg + .seg {
+  border-left: 1px solid var(--line);
+}
+.seg.active {
+  color: #fff;
+}
+.segmented .seg.active:first-child {
+  background: var(--and);
+}
+.segmented .seg.active:last-child {
+  background: var(--or);
+}
+
+/* Nested groups step their pill down a size, so the root reads as the frame. */
+.group:not(.root) > .group-head .segmented .seg {
+  font-size: 0.7rem;
+  padding: 0.26rem 0.55rem;
+}
+
+/* ---------- Exclude toggle ---------- */
+
+.exclude-toggle {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  border-radius: 6px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.exclude-toggle:hover {
+  border-color: var(--exclude);
+  color: var(--exclude);
+}
+.exclude-toggle.on {
+  background: var(--exclude);
+  border-color: var(--exclude);
+  color: #fff;
+}
+
+/* ---------- Add / icon buttons ---------- */
+
+/* Head-row action buttons: borderless (strokes made the row too busy), but
+   same 30px rounded-rect footprint — a soft fill appears on hover. Color
+   signals intent — blue = additive, grey→red = destructive. */
+.add-btn,
+.text-btn {
+  border: none;
+  background: none;
+  border-radius: 6px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.add-btn {
+  color: var(--and);
+}
+.add-btn:hover {
+  background: var(--and-soft);
+}
+.text-btn {
+  color: var(--ink-soft);
+}
+.text-btn:hover {
+  color: var(--exclude);
+  background: var(--exclude-soft);
+}
+
+/* Sized to match the row's other controls (selects are ~30px tall). The trash
+   glyph is a muted red — destructive, but not shouting. */
+.icon-btn {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: color-mix(in srgb, var(--exclude) 65%, var(--ink-faint));
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  height: 30px;
+  min-width: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.45rem;
+  border-radius: 6px;
+  align-self: center;
+}
+.icon-btn:hover {
+  color: var(--exclude);
+  border-color: var(--exclude);
+  background: var(--exclude-soft);
+}
+
+/* ---------- Overflow menu (group actions) ---------- */
+
+.menu {
+  position: relative;
+  display: inline-block;
+}
+/* Lift an open menu above sibling rows and their controls. */
+.menu[open] {
+  z-index: 30;
+}
+.menu > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+.menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Inline property/operator selectors: styled as dropdown controls (grey pill
+   with a caret) so they read as clickable; opens a single-select menu. */
+summary.inline-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 30px;
+  padding: 0 0.6rem;
+  background: #f1f3f5;
+  border-radius: 7px;
+}
+summary.inline-select::after {
+  content: "▾";
+  font-size: 0.9em;
+  color: var(--ink-faint);
+}
+summary.inline-select:hover {
+  background: #e9edf1;
+}
+.menu[open] > summary.inline-select {
+  background: var(--and-soft);
+}
+.inline-menu > .menu-list {
+  left: 0;
+  right: auto;
+  min-width: 190px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.menu-item.selected {
+  font-weight: 600;
+  color: var(--and);
+}
+.menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(20, 30, 50, 0.1);
+  padding: 4px;
+}
+.menu-item {
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 0.82rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.menu-item:hover {
+  background: #f1f3f5;
+}
+
+/* ---------- Condition (borderless rows) ---------- */
+
+.condition {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.6rem 0.2rem;
+}
+/* A condition with no property yet is unfinished — mute it via color.
+   (Not opacity: opacity < 1 creates a stacking context that would trap the
+   inline dropdowns below later sibling rows.) */
+.condition.unset summary.inline-select {
+  color: var(--ink-faint);
+}
+.condition.unset .icon-btn {
+  color: var(--ink-faintest);
+}
+
+/* The condition row: ✕ · property · operator · value pills. The row itself
+   isn't clickable — each part is directly editable inline. */
+.condition-summary {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 0.45rem;
+  padding: 0.1rem 0;
+}
+.summary-property {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.summary-op {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+/* All of a property's values, always on screen as toggle pills. The container
+   is display:contents, so pills flow in the row itself — starting on the same
+   line as the operator and wrapping like text (spacing comes from the row's
+   gap), rather than forming their own column. */
+.value-pills {
+  display: contents;
+}
+.value-pill {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 0.22rem 0.7rem;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.value-pill:hover {
+  border-color: var(--and);
+  color: var(--and);
+}
+.value-pill.selected {
+  background: var(--and-soft);
+  border-color: var(--and);
+  color: var(--and);
+  font-weight: 600;
+}
+/* In an "is none of" condition, selected values are exclusions — red. */
+.value-pills.negated .value-pill:hover {
+  border-color: var(--exclude);
+  color: var(--exclude);
+}
+.value-pills.negated .value-pill.selected {
+  background: var(--exclude-soft);
+  border-color: var(--exclude);
+  color: var(--exclude);
+}
+
+/* Native select — used only by the header's preset picker. */
+select {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.34rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: #f1f3f5;
+  color: var(--ink);
+  cursor: pointer;
+}
+select:hover {
+  background: #e9edf1;
+}
+select:focus-visible {
+  outline: 2px solid var(--and);
+  outline-offset: 1px;
+  background: var(--surface);
+}
+
+.values-placeholder {
+  color: var(--ink-faint);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+/* ---------- Drag & drop ---------- */
+
+.drag-handle {
+  color: var(--ink-faint);
+  cursor: grab;
+  font-size: 1rem;
+  line-height: 1.4;
+  user-select: none;
+  padding: 0 0.1rem;
+}
+.dragging {
+  opacity: 0.45;
+}
+
+.dropzone {
+  height: 8px;
+  margin: 1px 0;
+  border-radius: 4px;
+  transition: background 0.1s, height 0.1s;
+}
+.dropzone.over {
+  height: 16px;
+  background: var(--and-soft);
+  outline: 2px dashed var(--and);
+}
+
+/* ---------- Summary ---------- */
+
+.summary {
+  margin-top: 1.5rem;
+  padding: 1rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.summary h2 {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  font-weight: 700;
+}
+.summary-text {
+  margin: 0;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.9rem;
+  color: var(--ink);
+  word-break: break-word;
+}
+/* Boolean operators carry the tree's color language into the sentence. */
+.summary-text .op-and {
+  color: var(--and);
+  font-weight: 700;
+}
+.summary-text .op-or {
+  color: var(--or);
+  font-weight: 700;
+}
+.summary-text .op-not {
+  color: var(--exclude);
+  font-weight: 700;
+}
