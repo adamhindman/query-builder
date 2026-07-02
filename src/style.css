@@ -175,10 +175,10 @@ body {
   flex: none;
   margin-left: auto;
   position: relative;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 17px;
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: center;
   border: 1px solid var(--and);
   border-radius: 999px;
