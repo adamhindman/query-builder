@@ -72,7 +72,7 @@ body {
 /* Sticky full-height panel; the search stays put and only the list scrolls. */
 .sidebar {
   flex: none;
-  width: 320px;
+  width: 280px;
   height: 100vh;
   position: sticky;
   top: 0;
