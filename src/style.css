@@ -699,7 +699,7 @@ summary.inline-select:hover {
   display: flex;
   gap: 0.6rem;
   align-items: flex-start;
-  padding: 0.6rem 0.2rem;
+  padding: 0.2rem;
 }
 /* A condition with no property yet is unfinished — mute it via color.
    (Not opacity: opacity < 1 creates a stacking context that would trap the
