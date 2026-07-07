@@ -8,7 +8,7 @@
  *   - 'boolean' → Yes/No pill pair (no operator)
  *   - 'range'   → two number inputs, min and max (no operator)
  *   - 'minimum' → "at least" + a dropdown of thresholds, e.g. 1+…4+
- *                 (no operator)
+ *   - 'text'    → free-text input with contains/starts/ends/equals operators
  */
 
 export type PropertyValue = {
@@ -51,4 +51,13 @@ export type MinimumProperty = PropertyBase & {
   options: number[]
 }
 
-export type Property = EnumProperty | BooleanProperty | RangeProperty | MinimumProperty
+export type TextProperty = PropertyBase & {
+  kind: 'text'
+}
+
+export type Property =
+  | EnumProperty
+  | BooleanProperty
+  | RangeProperty
+  | MinimumProperty
+  | TextProperty

@@ -34,13 +34,17 @@ function summarizeCondition(cond: Condition): string {
   const property = cond.propertyId ? getProperty(cond.propertyId) : undefined
   if (!property) return '(unset condition)'
 
+  // Presence operators test the property itself — kind-independent.
+  if (cond.op === 'hasValue') return `${property.label} has a value`
+  if (cond.op === 'noValue') return `${property.label} has no value`
+
   switch (property.kind) {
     case 'enum': {
       const labels = cond.valueIds
         .map((id) => property.values.find((v) => v.id === id)?.label)
         .filter((l): l is string => !!l)
       if (labels.length === 0) return `${property.label} (no values)`
-      return `${property.label} ${OP_PHRASE[cond.op]} ${labels.join(', ')}`
+      return `${property.label} ${ENUM_PHRASE[cond.op] ?? 'is any of'} ${labels.join(', ')}`
     }
     case 'boolean': {
       if (cond.bool == null) return `${property.label} (no value)`
@@ -49,20 +53,45 @@ function summarizeCondition(cond: Condition): string {
     case 'range': {
       const { min, max } = cond.range
       const unit = property.unit ? ` ${property.unit}` : ''
-      if (min == null && max == null) return `${property.label} (no value)`
-      if (min != null && max != null) return `${property.label} is between ${min} and ${max}${unit}`
-      if (min != null) return `${property.label} is at least ${min}${unit}`
-      return `${property.label} is at most ${max}${unit}`
+      if (cond.op === 'between') {
+        if (min == null && max == null) return `${property.label} (no value)`
+        if (min != null && max != null)
+          return `${property.label} is between ${min} and ${max}${unit}`
+        if (min != null) return `${property.label} is at least ${min}${unit}`
+        return `${property.label} is at most ${max}${unit}`
+      }
+      // One-sided comparisons keep their value in min (gt/gte) or max (lt/lte).
+      const bound = cond.op === 'gt' || cond.op === 'gte' ? min : max
+      if (bound == null) return `${property.label} (no value)`
+      return `${property.label} ${RANGE_PHRASE[cond.op] ?? 'is'} ${bound}${unit}`
     }
     case 'minimum': {
       if (cond.minimum == null) return `${property.label} (no value)`
       return `${property.label} is at least ${cond.minimum}`
     }
+    case 'text': {
+      if (cond.text == null) return `${property.label} (no value)`
+      return `${property.label} ${TEXT_PHRASE[cond.op] ?? 'contains'} "${cond.text}"`
+    }
   }
 }
 
-const OP_PHRASE: Record<Condition['op'], string> = {
+const ENUM_PHRASE: Partial<Record<Condition['op'], string>> = {
   any: 'is any of',
   all: 'is all of',
   none: 'is none of',
+}
+
+const RANGE_PHRASE: Partial<Record<Condition['op'], string>> = {
+  gt: 'is greater than',
+  lt: 'is less than',
+  gte: 'is at least',
+  lte: 'is at most',
+}
+
+const TEXT_PHRASE: Partial<Record<Condition['op'], string>> = {
+  contains: 'contains',
+  startsWith: 'starts with',
+  endsWith: 'ends with',
+  equals: 'is exactly',
 }

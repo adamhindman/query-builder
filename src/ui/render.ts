@@ -2,7 +2,13 @@ import { el } from '../dom'
 import { PROPERTIES, getProperty } from '../data/properties'
 import type { Property } from '../data/schema'
 import type { Condition, ConditionOp, Group, Node } from '../query/model'
-import { newCondition, newGroup, isDescendant, countConditions } from '../query/model'
+import {
+  newCondition,
+  newGroup,
+  isDescendant,
+  countConditions,
+  defaultOpFor,
+} from '../query/model'
 import type { QueryStore } from '../query/store'
 import { draggedPropertyId, endPropertyDrag } from './dnd'
 import {
@@ -17,6 +23,7 @@ import {
   setOp,
   setProperty,
   setRange,
+  setText,
   toggleExclude,
   toggleValue,
 } from '../query/model'
@@ -25,7 +32,31 @@ const OP_LABELS: Record<ConditionOp, string> = {
   any: 'is any of',
   all: 'is all of',
   none: 'is none of',
+  is: 'is',
+  between: 'is between',
+  gt: 'is greater than',
+  lt: 'is less than',
+  gte: 'is at least',
+  lte: 'is at most',
+  atLeast: 'is at least',
+  contains: 'contains',
+  startsWith: 'starts with',
+  endsWith: 'ends with',
+  equals: 'is exactly',
+  hasValue: 'has a value',
+  noValue: 'has no value',
 }
+
+/** Each kind's operator choices; the presence pair is universal. */
+const KIND_OPS: Record<Property['kind'], ConditionOp[]> = {
+  enum: ['any', 'all', 'none', 'hasValue', 'noValue'],
+  boolean: ['is', 'hasValue', 'noValue'],
+  range: ['between', 'gt', 'lt', 'gte', 'lte', 'hasValue', 'noValue'],
+  minimum: ['atLeast', 'hasValue', 'noValue'],
+  text: ['contains', 'startsWith', 'endsWith', 'equals', 'hasValue', 'noValue'],
+}
+
+const isPresence = (op: ConditionOp): boolean => op === 'hasValue' || op === 'noValue'
 
 /**
  * Drag-and-drop reordering: the sidebar appends new conditions to the root
@@ -198,7 +229,8 @@ function renderCondition(store: QueryStore, cond: Condition): HTMLElement {
       selected: p.id === cond.propertyId,
       onSelect: () => {
         // Re-picking the current property would needlessly wipe its values.
-        if (p.id !== cond.propertyId) store.update((s) => setProperty(s, cond.id, p.id))
+        if (p.id !== cond.propertyId)
+          store.update((s) => setProperty(s, cond.id, p.id, defaultOpFor(p.kind)))
       },
     })),
     true,
@@ -229,19 +261,27 @@ function renderCondition(store: QueryStore, cond: Condition): HTMLElement {
   return card
 }
 
-/** The operator/value controls for a condition, chosen by the property kind. */
+/**
+ * The operator/value controls for a condition. Every kind gets an operator
+ * dropdown (the kind's own operators plus the universal presence pair); the
+ * value UI follows the chosen operator — presence operators need none.
+ */
 function conditionControls(store: QueryStore, cond: Condition, property: Property): HTMLElement[] {
+  const opSelect = inlineSelect(
+    'summary-op',
+    OP_LABELS[cond.op],
+    KIND_OPS[property.kind].map((op) => ({
+      label: OP_LABELS[op],
+      selected: op === cond.op,
+      onSelect: () => store.update((s) => setOp(s, cond.id, op)),
+    })),
+  )
+
+  // "has a value" / "has no value" test the property itself — no value UI.
+  if (isPresence(cond.op)) return [opSelect]
+
   switch (property.kind) {
     case 'enum': {
-      const opSelect = inlineSelect(
-        'summary-op',
-        OP_LABELS[cond.op],
-        (Object.keys(OP_LABELS) as ConditionOp[]).map((op) => ({
-          label: OP_LABELS[op],
-          selected: op === cond.op,
-          onSelect: () => store.update((s) => setOp(s, cond.id, op)),
-        })),
-      )
       // All values stay on screen as toggle pills — selection state is always
       // visible. "is none of" selections are exclusions, so they read red.
       const pills = el(
@@ -278,26 +318,40 @@ function conditionControls(store: QueryStore, cond: Condition, property: Propert
           },
           label,
         )
-      return [el('span', { class: 'value-pills' }, pill(true, 'Yes'), pill(false, 'No'))]
+      return [opSelect, el('span', { class: 'value-pills' }, pill(true, 'Yes'), pill(false, 'No'))]
     }
 
     case 'range': {
-      return [
-        el('span', { class: 'input-word' }, 'is between'),
-        numberInput(cond.range.min, 'min', (v) =>
-          store.update((s) => setRange(s, cond.id, v, cond.range.max)),
-        ),
-        el('span', { class: 'input-word' }, 'and'),
-        numberInput(cond.range.max, 'max', (v) =>
-          store.update((s) => setRange(s, cond.id, cond.range.min, v)),
-        ),
-        ...(property.unit ? [el('span', { class: 'input-word' }, property.unit)] : []),
-      ]
+      const unit = property.unit ? [el('span', { class: 'input-word' }, property.unit)] : []
+      if (cond.op === 'between') {
+        return [
+          opSelect,
+          numberInput(cond.range.min, 'min', (v) =>
+            store.update((s) => setRange(s, cond.id, v, cond.range.max)),
+          ),
+          el('span', { class: 'input-word' }, 'and'),
+          numberInput(cond.range.max, 'max', (v) =>
+            store.update((s) => setRange(s, cond.id, cond.range.min, v)),
+          ),
+          ...unit,
+        ]
+      }
+      // One-sided comparisons: gt/gte store their value in `min`, lt/lte in
+      // `max`, so switching between related operators keeps the number.
+      const usesMin = cond.op === 'gt' || cond.op === 'gte'
+      const input = usesMin
+        ? numberInput(cond.range.min, 'value', (v) =>
+            store.update((s) => setRange(s, cond.id, v, null)),
+          )
+        : numberInput(cond.range.max, 'value', (v) =>
+            store.update((s) => setRange(s, cond.id, null, v)),
+          )
+      return [opSelect, input, ...unit]
     }
 
     case 'minimum': {
       return [
-        el('span', { class: 'input-word' }, 'at least'),
+        opSelect,
         inlineSelect(
           'summary-op',
           cond.minimum == null ? 'Choose…' : `${cond.minimum}+`,
@@ -308,6 +362,10 @@ function conditionControls(store: QueryStore, cond: Condition, property: Propert
           })),
         ),
       ]
+    }
+
+    case 'text': {
+      return [opSelect, textInput(cond.text, (v) => store.update((s) => setText(s, cond.id, v)))]
     }
   }
 }
@@ -332,6 +390,21 @@ function numberInput(
       const raw = (e.target as HTMLInputElement).value.trim()
       const parsed = raw === '' ? null : Number(raw)
       onCommit(parsed == null || Number.isNaN(parsed) ? null : parsed)
+    },
+  })
+}
+
+/** Text input (text conditions) — commits on change, same as numberInput. */
+function textInput(value: string | null, onCommit: (v: string | null) => void): HTMLElement {
+  return el('input', {
+    type: 'text',
+    class: 'num-input text-input',
+    dataset: { nodrag: 'true' },
+    value: value ?? '',
+    placeholder: 'text…',
+    onchange: (e: Event) => {
+      const raw = (e.target as HTMLInputElement).value.trim()
+      onCommit(raw === '' ? null : raw)
     },
   })
 }
@@ -567,7 +640,14 @@ function makeDropTarget(store: QueryStore, zone: HTMLElement, parentId: string, 
     const propertyId = draggedPropertyId()
     if (propertyId) {
       endPropertyDrag()
-      store.update((s) => insertChild(s, parentId, index, { ...newCondition(), propertyId }))
+      const kind = getProperty(propertyId)?.kind
+      store.update((s) =>
+        insertChild(s, parentId, index, {
+          ...newCondition(),
+          propertyId,
+          op: kind ? defaultOpFor(kind) : 'any',
+        }),
+      )
       return
     }
     const id = draggingId

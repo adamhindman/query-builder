@@ -6,34 +6,65 @@
  * ordered list of `Node`s — either leaf `Condition`s or nested `Group`s, to
  * any depth.
  *
- * A `Condition` filters on one property. Its `op` says how the selected values
- * relate to a record:
- *   - 'any'  → matches if the record has AT LEAST ONE selected value  (OR)
- *   - 'all'  → matches only if the record has EVERY selected value     (AND)
- *   - 'none' → matches if the record has NONE of the selected values   (NOT)
+ * A `Condition` filters on one property via an operator. Every property kind
+ * has its own operator set (see `KIND_OPS` in the render module); the
+ * presence operators are members of every set:
+ *   enum    — 'any' (at least one selected value), 'all' (every selected
+ *             value), 'none' (none of the selected values)
+ *   range   — 'between' | 'gt' | 'lt' | 'gte' | 'lte'
+ *   boolean — 'is' (the Yes/No selection)
+ *   minimum — 'atLeast'
+ *   text    — 'contains' | 'startsWith' | 'endsWith' | 'equals'
+ *   any kind — 'hasValue' | 'noValue' (a presence test on the property
+ *             itself; the condition needs no value)
  *
  * All tree operations below are pure: they return a new tree and never mutate
  * the input, which keeps the store's undo-friendly and re-render logic simple.
  */
 
+import type { Property } from '../data/schema'
+
 export type Combinator = 'AND' | 'OR'
-export type ConditionOp = 'any' | 'all' | 'none'
+export type EnumOp = 'any' | 'all' | 'none'
+export type RangeOp = 'between' | 'gt' | 'lt' | 'gte' | 'lte'
+export type TextOp = 'contains' | 'startsWith' | 'endsWith' | 'equals'
+export type PresenceOp = 'hasValue' | 'noValue'
+export type ConditionOp = EnumOp | RangeOp | TextOp | PresenceOp | 'is' | 'atLeast'
 
 export type Condition = {
   kind: 'condition'
   id: string
   /** Property being filtered on, or `null` until the user picks one. */
   propertyId: string | null
-  /** Operator — only meaningful for enum properties. */
+  /** Operator — drawn from the property kind's operator set. */
   op: ConditionOp
   /** Selected value ids (enum properties). */
   valueIds: string[]
   /** Yes/No selection (boolean properties); null = unset. */
   bool: boolean | null
-  /** Min/max bounds (range properties); either side may be null. */
+  /** Bounds (range properties): 'between' uses both; 'gt'/'gte' store their
+      value in `min`, 'lt'/'lte' in `max`. */
   range: { min: number | null; max: number | null }
   /** "At least N" threshold (minimum properties); null = unset. */
   minimum: number | null
+  /** Free-text value (text properties); null = unset. */
+  text: string | null
+}
+
+/** The operator a fresh condition starts with, per property kind. */
+export function defaultOpFor(kind: Property['kind']): ConditionOp {
+  switch (kind) {
+    case 'enum':
+      return 'any'
+    case 'boolean':
+      return 'is'
+    case 'range':
+      return 'between'
+    case 'minimum':
+      return 'atLeast'
+    case 'text':
+      return 'contains'
+  }
 }
 
 export type Group = {
@@ -67,6 +98,7 @@ export function newCondition(): Condition {
     bool: null,
     range: { min: null, max: null },
     minimum: null,
+    text: null,
   }
 }
 
@@ -88,6 +120,16 @@ export function defaultQuery(): Group {
 export function countConditions(root: Node): number {
   if (root.kind === 'condition') return 1
   return root.children.reduce((n, child) => n + countConditions(child), 0)
+}
+
+/** Ids of every property referenced by a condition anywhere in the subtree. */
+export function usedPropertyIds(root: Node, into: Set<string> = new Set()): Set<string> {
+  if (root.kind === 'condition') {
+    if (root.propertyId) into.add(root.propertyId)
+  } else {
+    for (const child of root.children) usedPropertyIds(child, into)
+  }
+  return into
 }
 
 /** Depth-first search for a node by id. */
@@ -160,13 +202,33 @@ export function clearGroup(root: Group, groupId: string): Group {
   return update(root, groupId, (n) => (n.kind === 'group' ? { ...n, children: [] } : n))
 }
 
-export function setProperty(root: Group, condId: string, propertyId: string): Group {
-  // Changing property invalidates every kind of stored value, so reset all.
+export function setProperty(
+  root: Group,
+  condId: string,
+  propertyId: string,
+  op: ConditionOp,
+): Group {
+  // Changing property invalidates every kind of stored value, so reset all;
+  // the caller supplies the new kind's default operator (the model stays
+  // ignorant of the schema data).
   return update(root, condId, (n) =>
     n.kind === 'condition'
-      ? { ...n, propertyId, valueIds: [], bool: null, range: { min: null, max: null }, minimum: null }
+      ? {
+          ...n,
+          propertyId,
+          op,
+          valueIds: [],
+          bool: null,
+          range: { min: null, max: null },
+          minimum: null,
+          text: null,
+        }
       : n,
   )
+}
+
+export function setText(root: Group, condId: string, text: string | null): Group {
+  return update(root, condId, (n) => (n.kind === 'condition' ? { ...n, text } : n))
 }
 
 export function setBool(root: Group, condId: string, value: boolean | null): Group {

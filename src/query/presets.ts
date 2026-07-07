@@ -12,15 +12,38 @@ function cond(propertyId: string, op: ConditionOp, valueIds: string[]): Conditio
 }
 
 function boolCond(propertyId: string, value: boolean): Condition {
-  return { ...newCondition(), propertyId, bool: value }
+  return { ...newCondition(), propertyId, op: 'is', bool: value }
 }
 
 function minCond(propertyId: string, minimum: number): Condition {
-  return { ...newCondition(), propertyId, minimum }
+  return { ...newCondition(), propertyId, op: 'atLeast', minimum }
 }
 
 function rangeCond(propertyId: string, min: number | null, max: number | null): Condition {
-  return { ...newCondition(), propertyId, range: { min, max } }
+  return { ...newCondition(), propertyId, op: 'between', range: { min, max } }
+}
+
+/** One-sided numeric comparison: gt/gte keep their value in min, lt/lte in max. */
+function cmpCond(propertyId: string, op: 'gt' | 'gte' | 'lt' | 'lte', value: number): Condition {
+  const usesMin = op === 'gt' || op === 'gte'
+  return {
+    ...newCondition(),
+    propertyId,
+    op,
+    range: { min: usesMin ? value : null, max: usesMin ? null : value },
+  }
+}
+
+function textCond(
+  propertyId: string,
+  op: 'contains' | 'startsWith' | 'endsWith' | 'equals',
+  text: string,
+): Condition {
+  return { ...newCondition(), propertyId, op, text }
+}
+
+function presenceCond(propertyId: string, op: 'hasValue' | 'noValue'): Condition {
+  return { ...newCondition(), propertyId, op }
 }
 
 function group(combinator: Group['combinator'], exclude: boolean, children: Node[]): Group {
@@ -34,6 +57,27 @@ export type Preset = {
 }
 
 export const PRESETS: Preset[] = [
+  {
+    id: 'kitchen-sink',
+    label: 'Every condition type',
+    build: () =>
+      group('AND', false, [
+        cond('diagnosis', 'any', ['alzheimers', 'mci']),
+        boolCond('hasBiomarkerData', true),
+        presenceCond('apoeGenotype', 'hasValue'),
+        minCond('visitCode', 2),
+        rangeCond('fieldCenterCode', 100, 400),
+        group('OR', false, [
+          cond('dataType', 'all', ['gene_expression', 'protein_abundance']),
+          textCond('fileName', 'endsWith', '.vcf'),
+          cmpCond('fieldCenterCode', 'gt', 250),
+        ]),
+        group('AND', true, [
+          cond('cohort', 'none', ['arivale']),
+          presenceCond('yearsOfEducation', 'noValue'),
+        ]),
+      ]),
+  },
   {
     id: 'ad-biomarker',
     label: "Alzheimer's cases with biomarkers",

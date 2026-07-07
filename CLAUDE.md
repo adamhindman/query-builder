@@ -20,11 +20,17 @@ The user builds a **query tree**:
   and may be marked **excluded** (`NOT`), which negates the whole group.
 - A group's children are an ordered list of **conditions** and/or nested
   **groups**, to **arbitrary depth**.
-- A **condition** filters on one **property** and selects one or more of that
-  property's **values**, related by an **operator**:
-  - `any`  → matches if the record has **at least one** selected value (OR over values)
-  - `all`  → matches only if the record has **every** selected value (AND over values)
-  - `none` → matches if the record has **none** of the selected values (NOT over values)
+- A **condition** filters on one **property** via an **operator**; every
+  property kind has its own operator set, and two **presence operators** are
+  members of every set:
+  - enum: `any` (record has **at least one** selected value — OR), `all`
+    (**every** selected value — AND), `none` (**none** of them — NOT)
+  - range: `between` / `greater than` / `less than` / `at least` / `at most`
+  - boolean: `is` (the Yes/No selection)
+  - minimum: `at least`
+  - text: `contains` / `starts with` / `ends with` / `is exactly`
+  - any kind: `has a value` / `has no value` — a presence (NULL) test on the
+    property itself; when chosen, the condition needs **no value input**.
 
 ### Key semantic rules
 
@@ -53,6 +59,18 @@ confirmed in words. Keep this feature.
   uppercase operator word would be miscolored (none exist in practice).
 - The **root group reads without outer parens**; nested groups keep them, and
   an excluded group is always parenthesized so its NOT has unambiguous scope.
+- A **Plain | SQL pill switcher** in the summary head (small segmented
+  control, neutral grey active fill — blue/amber actives are reserved for
+  AND/OR) swaps the sentence for an **illustrative SQL rendering**: a
+  `SELECT * FROM … WHERE` statement, pretty-printed with one child per line,
+  combinator-leading continuation lines, and indentation carrying the
+  nesting; the same AND/OR/NOT colorizing applies. Property ids stand in as
+  column names; enum `any`/`none` → `IN`/`NOT IN`, `all` → AND-chain of
+  equalities, boolean → `= TRUE/FALSE`, range → `BETWEEN`/`>`/`<`/`>=`/`<=`
+  per operator, minimum → `>= n`, text → `LIKE '%…%'` (wildcards escaped,
+  `ESCAPE '\'` added only when needed) or `=` for `is exactly`, presence →
+  `IS NULL` / `IS NOT NULL`. Unfinished conditions and empty groups render as
+  SQL comments. The view choice is local shell state, not query state.
 
 ---
 
@@ -69,12 +87,12 @@ type Property =
   | { id; label; kind: 'boolean' }                       // Yes/No
   | { id; label; kind: 'range'; unit?: string }          // min/max numbers
   | { id; label; kind: 'minimum'; options: number[] }    // "at least N+"
-type PropertyGroup = { label: string; properties: Property[] }  // sidebar category
+  | { id; label; kind: 'text' }                          // free-text (LIKE)
 ```
 
-Properties are organized into named **groups** (categories) — the facet
-sidebar renders one section per group. The flat `PROPERTIES` list is derived
-from the groups.
+The `PROPERTIES` list is **flat — real data has no property categories**, so
+the sidebar renders no grouping; any section comments in the data file are
+code organization only.
 
 - **enum** — multi-select from fixed values, with the any/all/none operator.
   (`ordered` is inert metadata for a possible future range-style operator.)
@@ -92,25 +110,37 @@ returns a new tree and never mutates the input:
 
 ```ts
 type Combinator = 'AND' | 'OR'
-type ConditionOp = 'any' | 'all' | 'none'   // enum properties only
+type ConditionOp =
+  | 'any' | 'all' | 'none'                          // enum
+  | 'between' | 'gt' | 'lt' | 'gte' | 'lte'         // range
+  | 'is'                                            // boolean
+  | 'atLeast'                                       // minimum
+  | 'contains' | 'startsWith' | 'endsWith' | 'equals' // text
+  | 'hasValue' | 'noValue'                          // presence — any kind
 type Condition = {
   kind: 'condition'; id; propertyId: string | null
-  op: ConditionOp            // enum
+  op: ConditionOp            // from the property kind's operator set
   valueIds: string[]         // enum
   bool: boolean | null       // boolean
-  range: { min: number | null; max: number | null }  // range
+  range: { min: number | null; max: number | null }  // range; gt/gte use min,
+                                                      // lt/lte use max
   minimum: number | null     // minimum
+  text: string | null        // text
 }
 type Group = { kind: 'group'; id; combinator; exclude: boolean; children: Node[] }
 type Node  = Condition | Group
 ```
 
 A condition holds one value slot per property kind; only the slot matching its
-property's kind is meaningful. Changing property resets **all** slots.
+property's kind is meaningful (presence operators use none). Changing property
+resets **all** slots and sets the new kind's default operator
+(`defaultOpFor(kind)`: any / between / is / atLeast / contains) — the caller
+passes it in, keeping the model ignorant of the schema data.
 
 - Tree edits are pure functions (`setCombinator`, `toggleExclude`, `addChild`,
-  `removeNode`, `clearGroup`, `setProperty`, `setOp`, `toggleValue`, `moveNode`),
-  each rebuilding only the branch that changed.
+  `insertChild`, `removeNode`, `clearGroup`, `setProperty`, `setOp`,
+  `toggleValue`, `setText`, `moveNode`), each rebuilding only the branch that
+  changed.
 - A tiny **observable store** holds the current tree, replaces it wholesale on
   each edit, and notifies subscribers.
 - The UI **fully re-renders** the tree on every change. This is fine at expected
@@ -189,15 +219,21 @@ preserve them.
    - When the operator is **"is none of"**, selected pills are **red** instead
      of blue — the selection is an exclusion, and red = NOT everywhere in the
      design.
-   - **Non-enum kinds have no operator dropdown**; muted connective words
-     supply the grammar instead:
-     - *boolean*: a **Yes / No pill pair** (same pill style), single-select;
-       clicking the active pill clears it.
-     - *range*: "is between" **[number input]** "and" **[number input]** +
-       optional unit label. Inputs commit **on change (blur/Enter), never on
-       keystroke** — every store update fully re-renders, which would steal
-       focus mid-typing.
-     - *minimum*: "at least" + a dropdown of thresholds rendered as **N+**.
+   - **Every kind gets the operator dropdown** (same muted styling — rows
+     still read as sentences); the value UI follows the chosen operator:
+     - *boolean*: `is` + a **Yes / No pill pair** (same pill style),
+       single-select; clicking the active pill clears it.
+     - *range*: `is between` **[number] and [number]** (+ optional unit), or
+       `is greater/less than` / `is at least/most` + a **single** number
+       input. One-sided values live in `min` (gt/gte) or `max` (lt/lte), so
+       switching between related operators keeps the number. Inputs commit
+       **on change (blur/Enter), never on keystroke** — every store update
+       fully re-renders, which would steal focus mid-typing.
+     - *minimum*: `is at least` + a dropdown of thresholds rendered as **N+**.
+     - *text*: `contains` / `starts with` / `ends with` / `is exactly` + a
+       free-text input (commits on change, like the number inputs).
+     - **presence** (`has a value` / `has no value`, any kind): the value UI
+       disappears entirely — there is nothing to specify.
    - A condition with **no property yet** shows only the property picker and a
      placeholder, **muted via color — never opacity**: opacity < 1 creates a
      stacking context that traps the row's dropdowns underneath later sibling
@@ -246,11 +282,11 @@ preserve them.
 
 ## Facet sidebar
 
-A **left sidebar** lists every **property** as a selectable row, one section
-per property group (uppercase category header with a count). Its purpose is to
-splay the properties out where they can be seen, instead of hiding them inside
-the builder's dropdown selector — it is **not** for selecting values; values
-are always chosen in the builder.
+A **left sidebar** lists every **property** as a selectable row in one flat
+list (**no categories** — real data has none). Its purpose is to splay the
+properties out where they can be seen, instead of hiding them inside the
+builder's dropdown selector — it is **not** for selecting values; values are
+always chosen in the builder.
 
 - Each **property row** is a button — clicking it appends a condition for
   that property, **with no value chosen yet**, to the **end of the root
@@ -280,9 +316,16 @@ are always chosen in the builder.
   an explicit shared channel because the sidebar and tree are independent
   components (in a React port: separate components + a context/store). The
   tree's own node-reorder drag state stays private to the render module.
-- The sidebar is persistent chrome: it doesn't re-render on store changes,
-  only its list region re-renders as the filter text changes (so the search
-  input never loses focus).
+- Properties **used by any condition in the current query** get an "in use"
+  highlight (grey — gray/100 fill + ink-weight semibold label), and their
+  label shows a tooltip ("Used in the current query") on hover, so the
+  sidebar doubles as an at-a-glance index of what the query touches. Kept
+  current via a store subscription that only toggles a class + `data-tip` on
+  the rows.
+- The sidebar is persistent chrome: it never re-renders on store changes
+  (the usage highlight above is a class toggle, not a re-render); only its
+  list region re-renders as the filter text changes (so the search input
+  never loses focus).
 
 ## Drag-and-drop
 
@@ -324,8 +367,10 @@ query's logic** (different combinator / exclude / nesting).
   before that, a "pick a property" placeholder shows. Non-enum kinds swap in
   their own controls (Yes/No pills, number inputs, N+ dropdown).
 - **Summary phrasing per kind:** enum `is any/all/none of …`; boolean
-  `is Yes/No`; range `is between X and Y unit` (or `at least X` / `at most Y`
-  when one side is empty); minimum `is at least N`. Unset values read as
+  `is Yes/No`; range `is between X and Y unit` (or `is greater/less than X`,
+  `is at least/most X` per operator); minimum `is at least N`; text
+  `contains/starts with/ends with/is exactly "…"`; presence
+  `has a value` / `has no value` (any kind). Unset values read as
   `(no value)`.
 - **Partial/empty states render gracefully:** a condition with no property, or a
   property with no values selected, still renders and appears in the summary as
