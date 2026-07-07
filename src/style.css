@@ -119,10 +119,19 @@ body {
   color: var(--ink-faint);
 }
 
+/* Narrow side padding — the rows' own padding supplies the text inset, so
+   their hover/in-use fills span nearly the sidebar's full width and the row
+   text lines up with the search box above (0.5rem + 0.5rem = 1rem). */
 .sidebar-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0.5rem 1rem 1.5rem;
+  /* Never scroll horizontally — anything wider (e.g. a tooltip's overhang)
+     is clipped, and label text wraps instead. */
+  overflow-x: hidden;
+  padding: 0.5rem 0.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
 }
 
 .sidebar-empty {
@@ -141,7 +150,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.3rem 0.4rem;
+  padding: 0.35rem 0.5rem;
   border-radius: 6px;
   font-size: 0.85rem;
   font-weight: 500;
@@ -155,7 +164,8 @@ body {
 .facet-row:hover .facet-label {
   color: var(--and);
 }
-/* Properties used by a condition in the current query: filled grey row. */
+/* Properties used by a condition in the current query: filled grey row —
+   quiet presence marker; blue stays for hover/additive affordances. */
 .facet-row.in-use {
   background: var(--gray-100);
 }
@@ -164,8 +174,28 @@ body {
   font-weight: 600;
 }
 
-/* "+" affordance, revealed on row hover. It's a span, not a nested button —
-   the whole row already is the button. */
+/* Right edge of a row shows exactly one thing at a time, flush right:
+   not in use →  (nothing)   hover: "+" add affordance
+   in use     →  checkmark   hover: "−" remove affordance                  */
+
+/* Checkmark: the resting "this property is in the query" indicator. */
+.facet-check {
+  flex: none;
+  margin-left: auto;
+  display: none;
+  align-items: center;
+  color: var(--ink-soft);
+}
+.facet-row.in-use .facet-check {
+  display: inline-flex;
+}
+.facet-row.in-use:hover .facet-check {
+  display: none;
+}
+
+/* "+"/"−" affordance, revealed on row hover. It's a span, not a nested
+   button — the whole row already is the button (the click handler routes by
+   what was hit). */
 .facet-add {
   flex: none;
   margin-left: auto;
@@ -186,6 +216,16 @@ body {
 .facet-row:hover .facet-add {
   opacity: 1;
 }
+/* In-use rows: hide the affordance until hover (the checkmark holds the
+   spot), and it reads as removal — red. */
+.facet-row.in-use .facet-add {
+  display: none;
+  border-color: var(--exclude);
+  color: var(--exclude);
+}
+.facet-row.in-use:hover .facet-add {
+  display: inline-flex;
+}
 /* Shared dark tooltip for sidebar affordances, driven by data-tip (replaces
    native titles). Hover the element itself to reveal it. */
 .sidebar [data-tip] {
@@ -203,7 +243,9 @@ body {
   font-weight: 500;
   padding: 0.3rem 0.55rem;
   border-radius: 5px;
-  white-space: nowrap;
+  /* Wrap rather than overflow the narrow sidebar. */
+  width: max-content;
+  max-width: 220px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.1s 0.15s;
@@ -211,22 +253,18 @@ body {
 .sidebar [data-tip]:hover::after {
   opacity: 1;
 }
-/* The in-use tooltip triggers from anywhere on its row, not just the label —
-   except while the cursor is on the "+", whose own tooltip takes over. */
-.facet-row:hover:not(:has(.facet-add:hover)) .facet-label[data-tip]::after {
-  opacity: 1;
-}
-/* The "+" sits at the row's right edge — anchor its tooltip there. */
-.facet-add::after {
+/* The "+" sits at the row's right edge — anchor its tooltip there. (Must
+   out-rank the shared [data-tip] rule above, hence the compound selector.) */
+.sidebar .facet-add[data-tip]::after {
   left: auto;
   right: 0;
 }
 /* While a row is being dragged: dim it (matching the tree's drag style) and
-   keep any tooltip out of the drag image. */
+   keep the tooltip out of the drag image. */
 .facet-row.dragging {
   opacity: 0.45;
 }
-.facet-row.dragging [data-tip]::after {
+.facet-row.dragging .facet-add::after {
   display: none;
 }
 
@@ -237,7 +275,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 0.05rem 0.4rem 0.3rem;
+  padding: 0.05rem 0.5rem 0.3rem;
 }
 .facet-hit {
   border: 1px solid var(--yellow);
@@ -319,7 +357,7 @@ body {
   display: flex;
   flex-direction: column;
   border-radius: var(--radius);
-  padding: 0.2rem 0.5rem 0.25rem;
+  padding: 0.3rem 0.5rem 0.35rem;
   /* Per-level nesting indent, elastic: tightens as the container narrows so
      deep trees stay usable. The bracket's width is derived from it below —
      keep them in sync. */
@@ -830,12 +868,16 @@ select:focus-visible {
 
 /* ---------- Drag & drop ---------- */
 
+/* Same 30px height as the row's buttons/inputs, glyph centered, so the
+   touch target lines up with the controls beside it. */
 .drag-handle {
   color: var(--ink-faint);
   cursor: grab;
   font-size: 1rem;
-  line-height: 1.4;
   user-select: none;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
   padding: 0 0.1rem;
 }
 .dragging {
@@ -843,13 +885,13 @@ select:focus-visible {
 }
 
 .dropzone {
-  height: 8px;
+  height: 9px;
   margin: 1px 0;
   border-radius: 4px;
   transition: background 0.1s, height 0.1s;
 }
 .dropzone.over {
-  height: 16px;
+  height: 20px;
   background: var(--and-soft);
   outline: 2px dashed var(--and);
 }

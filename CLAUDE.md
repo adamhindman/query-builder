@@ -317,11 +317,18 @@ always chosen in the builder.
   components (in a React port: separate components + a context/store). The
   tree's own node-reorder drag state stays private to the render module.
 - Properties **used by any condition in the current query** get an "in use"
-  highlight (grey — gray/100 fill + ink-weight semibold label), and their
-  label shows a tooltip ("Used in the current query") on hover, so the
-  sidebar doubles as an at-a-glance index of what the query touches. Kept
-  current via a store subscription that only toggles a class + `data-tip` on
-  the rows.
+  highlight (**grey** — gray/100 fill + ink semibold label; a quiet presence
+  marker, keeping blue for hover/additive affordances), and their label shows
+  a tooltip ("Used in the current query") on hover, so the sidebar doubles as
+  an at-a-glance index of what the query touches. Kept current via a store
+  subscription that only toggles class/`data-tip`/glyph on the rows.
+- The **right edge of a row shows exactly one thing at a time**: not in use →
+  nothing, with a blue "+" on hover (adds); in use → a small **checkmark**
+  (SVG, ink-soft), swapped on hover for a **red "−"** that **removes every
+  condition on that property** from the whole tree (if that empties the tree,
+  one blank condition is left — the "never empty" rule). Clicking the row
+  body always adds, even when in use (a second condition on the same property
+  is legitimate); only the "−" removes.
 - The sidebar is persistent chrome: it never re-renders on store changes
   (the usage highlight above is a class toggle, not a re-render); only its
   list region re-renders as the filter text changes (so the search input

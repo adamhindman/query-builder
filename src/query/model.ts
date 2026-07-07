@@ -263,6 +263,18 @@ export function toggleValue(root: Group, condId: string, valueId: string): Group
   })
 }
 
+/** Remove every condition filtering on `propertyId`, anywhere in the tree.
+    (Groups are kept even if emptied.) */
+export function removePropertyConditions(root: Group, propertyId: string): Group {
+  const strip = (g: Group): Group => ({
+    ...g,
+    children: g.children
+      .filter((c) => !(c.kind === 'condition' && c.propertyId === propertyId))
+      .map((c) => (c.kind === 'group' ? strip(c) : c)),
+  })
+  return strip(root)
+}
+
 /** Remove a node by id. Returns the tree unchanged if the id is the root. */
 export function removeNode(root: Group, id: string): Group {
   if (root.id === id) return root

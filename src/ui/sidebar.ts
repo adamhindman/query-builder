@@ -2,7 +2,14 @@ import { el, clear } from '../dom'
 import { PROPERTIES } from '../data/properties'
 import type { Property, PropertyValue } from '../data/schema'
 import type { Condition } from '../query/model'
-import { addChild, defaultOpFor, newCondition, usedPropertyIds } from '../query/model'
+import {
+  addChild,
+  countConditions,
+  defaultOpFor,
+  newCondition,
+  removePropertyConditions,
+  usedPropertyIds,
+} from '../query/model'
 import type { QueryStore } from '../query/store'
 import { startPropertyDrag, endPropertyDrag } from './dnd'
 
@@ -70,6 +77,15 @@ export function renderSidebar(store: QueryStore): HTMLElement {
   const addToRoot = (partial: Partial<Condition>) =>
     store.update((s) => addChild(s, s.id, { ...newCondition(), ...partial }))
 
+  // Remove every condition on the property, wherever it sits; if that empties
+  // the tree, leave one blank condition (the same "never empty" rule as
+  // startup and Clear all).
+  const removeFromQuery = (propertyId: string) =>
+    store.update((s) => {
+      const next = removePropertyConditions(s, propertyId)
+      return countConditions(next) === 0 ? { ...next, children: [...next.children, newCondition()] } : next
+    })
+
   const list = el('div', { class: 'sidebar-list' })
 
   const renderList = (query: string): void => {
@@ -81,6 +97,12 @@ export function renderSidebar(store: QueryStore): HTMLElement {
       return
     }
     for (const { property, valueHits } of facets) {
+      // Always-visible when in use: a checkmark at the row's right edge.
+      const check = el('span', { class: 'facet-check', 'aria-hidden': 'true' })
+      check.innerHTML =
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+
       list.appendChild(
         el(
           'div',
@@ -91,8 +113,15 @@ export function renderSidebar(store: QueryStore): HTMLElement {
               type: 'button',
               class: 'facet-row',
               dataset: { propertyId: property.id },
-              onclick: () =>
-                addToRoot({ propertyId: property.id, op: defaultOpFor(property.kind) }),
+              // One handler, two actions: the hover affordance removes when
+              // the property is in use ("−"); everywhere else adds ("+" or
+              // the row body).
+              onclick: (e: Event) => {
+                const inUse = usedPropertyIds(store.get()).has(property.id)
+                const onAffordance = !!(e.target as Element).closest?.('.facet-add')
+                if (inUse && onAffordance) removeFromQuery(property.id)
+                else addToRoot({ propertyId: property.id, op: defaultOpFor(property.kind) })
+              },
               // Rows can also be dragged straight onto a drop zone in the
               // tree, placing the new condition in one gesture.
               draggable: true,
@@ -109,7 +138,9 @@ export function renderSidebar(store: QueryStore): HTMLElement {
               },
             },
             el('span', { class: 'facet-label' }, highlight(property.label, q)),
-            // Hover affordance only — the whole row is the button; the
+            check,
+            // Hover affordance — "+" to add, or "−" to remove when the
+            // property is in use (glyph/tooltip swapped by applyUsage). The
             // custom tooltip (shared data-tip CSS) replaces a native title.
             el(
               'span',
@@ -153,10 +184,19 @@ export function renderSidebar(store: QueryStore): HTMLElement {
       const inUse = used.has(row.dataset.propertyId!)
       row.classList.toggle('in-use', inUse)
       // The label explains the highlight on hover (shared data-tip tooltip
-      // pattern; the row's "+" keeps its own add tooltip).
+      // pattern; the row's affordance keeps its own tooltip).
       const label = row.querySelector<HTMLElement>('.facet-label')
       if (inUse) label?.setAttribute('data-tip', 'Used in the current query')
       else label?.removeAttribute('data-tip')
+      // The hover affordance flips between add and remove.
+      const affordance = row.querySelector<HTMLElement>('.facet-add')
+      if (affordance) {
+        affordance.textContent = inUse ? '−' : '+'
+        affordance.setAttribute(
+          'data-tip',
+          inUse ? 'Remove from the query' : `Add a condition on ${label?.textContent ?? ''}`,
+        )
+      }
     })
   }
   store.subscribe(applyUsage)
