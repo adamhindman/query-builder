@@ -211,17 +211,22 @@ body {
 .sidebar [data-tip]:hover::after {
   opacity: 1;
 }
+/* The in-use tooltip triggers from anywhere on its row, not just the label —
+   except while the cursor is on the "+", whose own tooltip takes over. */
+.facet-row:hover:not(:has(.facet-add:hover)) .facet-label[data-tip]::after {
+  opacity: 1;
+}
 /* The "+" sits at the row's right edge — anchor its tooltip there. */
 .facet-add::after {
   left: auto;
   right: 0;
 }
 /* While a row is being dragged: dim it (matching the tree's drag style) and
-   keep the tooltip out of the drag image. */
+   keep any tooltip out of the drag image. */
 .facet-row.dragging {
   opacity: 0.45;
 }
-.facet-row.dragging .facet-add::after {
+.facet-row.dragging [data-tip]::after {
   display: none;
 }
 
