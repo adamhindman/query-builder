@@ -15,10 +15,6 @@ function boolCond(propertyId: string, value: boolean): Condition {
   return { ...newCondition(), propertyId, op: 'is', bool: value }
 }
 
-function minCond(propertyId: string, minimum: number): Condition {
-  return { ...newCondition(), propertyId, op: 'atLeast', minimum }
-}
-
 function rangeCond(propertyId: string, min: number | null, max: number | null): Condition {
   return { ...newCondition(), propertyId, op: 'between', range: { min, max } }
 }
@@ -65,7 +61,7 @@ export const PRESETS: Preset[] = [
         cond('diagnosis', 'any', ['alzheimers', 'mci']),
         boolCond('hasBiomarkerData', true),
         presenceCond('apoeGenotype', 'hasValue'),
-        minCond('visitCode', 2),
+        cmpCond('visitCode', 'gte', 2),
         rangeCond('fieldCenterCode', 100, 400),
         group('OR', false, [
           cond('dataType', 'all', ['gene_expression', 'protein_abundance']),
@@ -133,7 +129,7 @@ export const PRESETS: Preset[] = [
         ]),
         cond('dataType', 'any', ['dna_methylation']),
         cond('assayType', 'any', ['methylation_array']),
-        minCond('visitCode', 2),
+        cmpCond('visitCode', 'gte', 2),
       ]),
   },
   {
@@ -183,8 +179,8 @@ export const PRESETS: Preset[] = [
   {
     id: 'matched-controls',
     label: 'Matched female controls across cohorts',
-    // Mixes every input kind: enum, age bins, minimum visits, boolean, range,
-    // nested OR of AND groups, plus an excluded comorbidity group.
+    // Mixes every input kind: enum, age bins, boolean, range, nested OR of
+    // AND groups, plus an excluded comorbidity group.
     build: () =>
       group('AND', false, [
         cond('sex', 'any', ['female']),
@@ -192,7 +188,7 @@ export const PRESETS: Preset[] = [
         group('OR', false, [
           group('AND', false, [
             cond('cohort', 'any', ['llfs']),
-            minCond('visitCode', 3),
+            cmpCond('visitCode', 'gte', 3),
           ]),
           group('AND', false, [
             cond('cohort', 'any', ['chs', 'sof']),

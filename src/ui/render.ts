@@ -19,7 +19,6 @@ import {
   removeNode,
   setBool,
   setCombinator,
-  setMinimum,
   setOp,
   setProperty,
   setRange,
@@ -38,7 +37,6 @@ const OP_LABELS: Record<ConditionOp, string> = {
   lt: 'is less than',
   gte: 'is at least',
   lte: 'is at most',
-  atLeast: 'is at least',
   contains: 'contains',
   startsWith: 'starts with',
   endsWith: 'ends with',
@@ -52,7 +50,6 @@ const KIND_OPS: Record<Property['kind'], ConditionOp[]> = {
   enum: ['any', 'all', 'none', 'hasValue', 'noValue'],
   boolean: ['is', 'hasValue', 'noValue'],
   range: ['between', 'gt', 'lt', 'gte', 'lte', 'hasValue', 'noValue'],
-  minimum: ['atLeast', 'hasValue', 'noValue'],
   text: ['contains', 'startsWith', 'endsWith', 'equals', 'hasValue', 'noValue'],
 }
 
@@ -347,21 +344,6 @@ function conditionControls(store: QueryStore, cond: Condition, property: Propert
             store.update((s) => setRange(s, cond.id, null, v)),
           )
       return [opSelect, input, ...unit]
-    }
-
-    case 'minimum': {
-      return [
-        opSelect,
-        inlineSelect(
-          'summary-op',
-          cond.minimum == null ? 'Choose…' : `${cond.minimum}+`,
-          property.options.map((n) => ({
-            label: `${n}+`,
-            selected: cond.minimum === n,
-            onSelect: () => store.update((s) => setMinimum(s, cond.id, n)),
-          })),
-        ),
-      ]
     }
 
     case 'text': {

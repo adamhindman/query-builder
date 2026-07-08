@@ -6,8 +6,8 @@
  *   - 'enum'    → fixed set of values, multi-selected via toggle pills, with
  *                 an any/all/none operator
  *   - 'boolean' → Yes/No pill pair (no operator)
- *   - 'range'   → two number inputs, min and max (no operator)
- *   - 'minimum' → "at least" + a dropdown of thresholds, e.g. 1+…4+
+ *   - 'range'   → two number inputs, min and max (no operator); >=/<= express
+ *                 open-ended ranges
  *   - 'text'    → free-text input with contains/starts/ends/equals operators
  */
 
@@ -45,19 +45,8 @@ export type RangeProperty = PropertyBase & {
   unit?: string
 }
 
-export type MinimumProperty = PropertyBase & {
-  kind: 'minimum'
-  /** Selectable thresholds; each renders as "N+". */
-  options: number[]
-}
-
 export type TextProperty = PropertyBase & {
   kind: 'text'
 }
 
-export type Property =
-  | EnumProperty
-  | BooleanProperty
-  | RangeProperty
-  | MinimumProperty
-  | TextProperty
+export type Property = EnumProperty | BooleanProperty | RangeProperty | TextProperty

@@ -65,10 +65,6 @@ function summarizeCondition(cond: Condition): string {
       if (bound == null) return `${property.label} (no value)`
       return `${property.label} ${RANGE_PHRASE[cond.op] ?? 'is'} ${bound}${unit}`
     }
-    case 'minimum': {
-      if (cond.minimum == null) return `${property.label} (no value)`
-      return `${property.label} is at least ${cond.minimum}`
-    }
     case 'text': {
       if (cond.text == null) return `${property.label} (no value)`
       return `${property.label} ${TEXT_PHRASE[cond.op] ?? 'contains'} "${cond.text}"`

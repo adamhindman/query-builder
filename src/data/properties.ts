@@ -5,7 +5,7 @@ import type { Property } from './schema'
  * https://susheelvarma.com/cohort-builder/ (elite47.spec.json).
  *
  * Widget → kind mapping:
- *   multiselect → enum      bins → enum      minCount → minimum      range → range
+ *   multiselect → enum      bins → enum      minCount → range      range → range
  *   boolean     → boolean
  *
  * The 2 internal/hidden fields (familyID, hasHypertension) are omitted.
@@ -168,8 +168,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'visitCode',
     label: 'Visit Code',
-    kind: 'minimum',
-    options: [1, 2, 3],
+    kind: 'range',
   },
   {
     id: 'familyStudyParticipant',

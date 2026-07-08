@@ -13,7 +13,6 @@
  *             value), 'none' (none of the selected values)
  *   range   — 'between' | 'gt' | 'lt' | 'gte' | 'lte'
  *   boolean — 'is' (the Yes/No selection)
- *   minimum — 'atLeast'
  *   text    — 'contains' | 'startsWith' | 'endsWith' | 'equals'
  *   any kind — 'hasValue' | 'noValue' (a presence test on the property
  *             itself; the condition needs no value)
@@ -29,7 +28,7 @@ export type EnumOp = 'any' | 'all' | 'none'
 export type RangeOp = 'between' | 'gt' | 'lt' | 'gte' | 'lte'
 export type TextOp = 'contains' | 'startsWith' | 'endsWith' | 'equals'
 export type PresenceOp = 'hasValue' | 'noValue'
-export type ConditionOp = EnumOp | RangeOp | TextOp | PresenceOp | 'is' | 'atLeast'
+export type ConditionOp = EnumOp | RangeOp | TextOp | PresenceOp | 'is'
 
 export type Condition = {
   kind: 'condition'
@@ -45,8 +44,6 @@ export type Condition = {
   /** Bounds (range properties): 'between' uses both; 'gt'/'gte' store their
       value in `min`, 'lt'/'lte' in `max`. */
   range: { min: number | null; max: number | null }
-  /** "At least N" threshold (minimum properties); null = unset. */
-  minimum: number | null
   /** Free-text value (text properties); null = unset. */
   text: string | null
 }
@@ -60,8 +57,6 @@ export function defaultOpFor(kind: Property['kind']): ConditionOp {
       return 'is'
     case 'range':
       return 'between'
-    case 'minimum':
-      return 'atLeast'
     case 'text':
       return 'contains'
   }
@@ -97,7 +92,6 @@ export function newCondition(): Condition {
     valueIds: [],
     bool: null,
     range: { min: null, max: null },
-    minimum: null,
     text: null,
   }
 }
@@ -220,7 +214,6 @@ export function setProperty(
           valueIds: [],
           bool: null,
           range: { min: null, max: null },
-          minimum: null,
           text: null,
         }
       : n,
@@ -242,10 +235,6 @@ export function setRange(
   max: number | null,
 ): Group {
   return update(root, condId, (n) => (n.kind === 'condition' ? { ...n, range: { min, max } } : n))
-}
-
-export function setMinimum(root: Group, condId: string, minimum: number | null): Group {
-  return update(root, condId, (n) => (n.kind === 'condition' ? { ...n, minimum } : n))
 }
 
 export function setOp(root: Group, condId: string, op: ConditionOp): Group {

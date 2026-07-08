@@ -38,7 +38,9 @@
   --radius: 10px;
   --radius-sm: 7px;
 
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --nav-h: 76px;
+
+  font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--ink);
   line-height: 1.45;
 }
@@ -51,6 +53,97 @@ body {
   margin: 0;
   background: var(--bg);
   min-height: 100vh;
+  /* Clear the fixed site nav. */
+  padding-top: var(--nav-h);
+}
+
+/* ---------- Site nav (static mockup chrome) ---------- */
+
+.site-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: var(--nav-h);
+  display: flex;
+  align-items: stretch;
+  gap: 1.5rem;
+  padding: 0 1.5rem;
+  background: #fff;
+  border-bottom: 1px solid var(--gray-200);
+  box-shadow: 0 1px 4px rgba(20, 30, 50, 0.06);
+}
+
+.site-brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+.site-logo {
+  flex: none;
+  height: 46px;
+  width: auto;
+}
+
+.site-links {
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+  margin-left: 1.5rem;
+}
+.site-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.85rem;
+  text-decoration: none;
+  color: #87878b;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+.site-link:hover,
+.site-link.active {
+  color: #39ac97;
+}
+.site-link.active {
+  border-bottom-color: #39ac97;
+}
+.site-link .caret {
+  flex: none;
+  /* Path uses currentColor, so the caret follows the link's state color. */
+}
+
+.site-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  margin-left: auto;
+}
+.site-download {
+  display: inline-flex;
+}
+.site-avatar-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.site-avatar {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #6b6d1e;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.site-avatar-wrap .caret {
+  flex: none;
 }
 
 /* ---------- Shell ---------- */
@@ -68,15 +161,86 @@ body {
   padding: 2rem 1.5rem 4rem;
 }
 
+/* ---------- Explore section header (static mockup chrome) ---------- */
+
+.explore-inner {
+  padding: 1.75rem 2rem 0;
+  border-bottom: 1px solid var(--gray-200);
+}
+.explore-title {
+  margin: 0 0 0.9rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.explore-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 1.4rem;
+}
+.explore-tab {
+  padding-bottom: 0.7rem;
+  text-decoration: none;
+  color: #87878b;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+.explore-tab:hover,
+.explore-tab.active {
+  color: #39ac97;
+}
+.explore-tab.active {
+  border-bottom-color: #39ac97;
+}
+
+.explore-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.1rem 2rem;
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+}
+.toolbar-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.toolbar-hide {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  background: none;
+  padding: 0;
+  color: #39ac97;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.toolbar-spacer {
+  flex: 1;
+}
+.toolbar-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+
 /* ---------- Facet sidebar ---------- */
 
 /* Sticky full-height panel; the search stays put and only the list scrolls. */
 .sidebar {
   flex: none;
   width: 280px;
-  height: 100vh;
+  /* Sits below the fixed nav and fills the rest of the viewport height. */
+  height: calc(100vh - var(--nav-h));
   position: sticky;
-  top: 0;
+  top: var(--nav-h);
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--line);
@@ -919,26 +1083,12 @@ select:focus-visible {
   color: var(--ink-faint);
   font-weight: 700;
 }
-/* Plain/SQL view switcher: the small segmented pill, but with a neutral
-   active fill — blue and amber actives are reserved for AND/OR. (This rule
-   sits after the .segmented ones so it wins the specificity tie.) */
-.view-toggle .seg {
-  font-size: 0.7rem;
-  padding: 0.26rem 0.55rem;
-}
-.segmented.view-toggle .seg.active {
-  background: var(--ink-soft);
-}
 .summary-text {
   margin: 0;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 0.9rem;
   color: var(--ink);
   word-break: break-word;
-}
-/* SQL view is pre-formatted: line breaks and indents carry the nesting. */
-.summary-text.sql {
-  white-space: pre-wrap;
 }
 /* Boolean operators carry the tree's color language into the sentence. */
 .summary-text .op-and {
@@ -952,4 +1102,187 @@ select:focus-visible {
 .summary-text .op-not {
   color: var(--exclude);
   font-weight: 700;
+}
+
+/* ---------- Results ---------- */
+
+.results {
+  margin-top: 1.5rem;
+  background: var(--surface);
+}
+.results-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+.results h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.results-count {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Table scrolls horizontally on its own if columns overflow, so the page
+   body never does. */
+.results-table-wrap {
+  overflow-x: auto;
+}
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  font-family: "DM Sans", system-ui, sans-serif;
+}
+.results-table th {
+  text-align: left;
+  font-size: 0.82rem;
+  color: var(--ink);
+  font-weight: 600;
+  padding: 0.7rem 0.9rem;
+  background: var(--gray-100);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.results-table th:first-child {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+.results-table th:last-child {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+/* Header cell interior: label on the left, icon cluster (sort/help/filter)
+   pushed to the right, matching the reference portal's table headers. */
+.th-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+.th-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--ink-faint);
+}
+.th-icon {
+  display: inline-flex;
+  align-items: center;
+}
+.th-icon svg {
+  display: block;
+}
+.results-table td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--stroke-light);
+  color: var(--ink);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.results-table tbody tr:hover {
+  background: var(--gray-50);
+}
+.results-table tr:last-child td {
+  border-bottom: none;
+}
+/* Numeric columns right-align both header label and cell values. */
+.results-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* Leading selection column: a slim checkbox cell. */
+.th-check,
+.td-check {
+  width: 1%;
+  padding-left: 0.4rem;
+  padding-right: 0.4rem;
+  text-align: center;
+}
+.row-check {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: #39ac97;
+  vertical-align: middle;
+}
+.results-id {
+  color: var(--ink);
+}
+.results-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--ink-faint);
+}
+
+/* Pager row below the table. */
+.results-pager {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.7rem;
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+}
+.results-pager .spacer {
+  flex: 1;
+}
+.results-range {
+  color: var(--ink-soft);
+}
+.pager-status {
+  color: var(--ink-soft);
+  min-width: 6.5rem;
+  text-align: center;
+}
+.pager-btn {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 6px;
+  height: 28px;
+  padding: 0 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pager-btn:hover:not(:disabled) {
+  background: var(--gray-100);
+}
+.pager-btn:disabled {
+  color: var(--ink-faintest);
+  cursor: default;
+}
+
+/* Floating dev-tools menu (preset loader + Clear all). Hidden by default;
+   ⌘/Ctrl+\ toggles it. Pinned near the top-right, above the app. */
+.dev-menu {
+  position: fixed;
+  top: calc(var(--nav-h, 56px) + 0.75rem);
+  right: 1rem;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+}
+.dev-menu[hidden] {
+  display: none;
+}
+.dev-menu-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
 }

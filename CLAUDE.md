@@ -26,8 +26,8 @@ The user builds a **query tree**:
   - enum: `any` (record has **at least one** selected value — OR), `all`
     (**every** selected value — AND), `none` (**none** of them — NOT)
   - range: `between` / `greater than` / `less than` / `at least` / `at most`
+    (the last two express an open-ended range)
   - boolean: `is` (the Yes/No selection)
-  - minimum: `at least`
   - text: `contains` / `starts with` / `ends with` / `is exactly`
   - any kind: `has a value` / `has no value` — a presence (NULL) test on the
     property itself; when chosen, the condition needs **no value input**.
@@ -59,20 +59,44 @@ confirmed in words. Keep this feature.
   uppercase operator word would be miscolored (none exist in practice).
 - The **root group reads without outer parens**; nested groups keep them, and
   an excluded group is always parenthesized so its NOT has unambiguous scope.
-- A **Plain | SQL pill switcher** in the summary head (small segmented
-  control, neutral grey active fill — blue/amber actives are reserved for
-  AND/OR) swaps the sentence for an **illustrative SQL rendering**: a
-  `SELECT * FROM … WHERE` statement, pretty-printed with one child per line,
-  combinator-leading continuation lines, and indentation carrying the
-  nesting; the same AND/OR/NOT colorizing applies. Property ids stand in as
-  column names; enum `any`/`none` → `IN`/`NOT IN`, `all` → AND-chain of
-  equalities, boolean → `= TRUE/FALSE`, range → `BETWEEN`/`>`/`<`/`>=`/`<=`
-  per operator, minimum → `>= n`, text → `LIKE '%…%'` (wildcards escaped,
-  `ESCAPE '\'` added only when needed) or `=` for `is exactly`, presence →
-  `IS NULL` / `IS NOT NULL`. Unfinished conditions and empty groups render as
-  SQL comments. The view choice is local shell state, not query state.
 
 ---
+
+## Mock results (query evaluation)
+
+The builder runs its query against an in-memory **mock participants table** and
+shows live results — so the query does something, not just render.
+
+- `data/records.ts` generates a **seeded** (stable across reloads) set of
+  ~25,000 records from the schema: each property gets a kind-appropriate value —
+  enum → array of value ids (a few enums are **multi-valued** per record so
+  `all` is meaningful; the rest single), boolean → true/false, range →
+  a number, text → a filename-like string. A fraction of values are **missing**
+  (`null` / empty) so the presence operators are exercised.
+- `query/evaluate.ts` is the runtime twin of `summary.ts`: same operator
+  semantics, evaluated against a record. `matchesGroup` handles
+  combinator + exclude (an **empty group constrains nothing** → matches);
+  `matchesCondition` implements every operator. **Partial-state rule:** an
+  incomplete condition (no property, or an operator with no value yet) adds
+  **no constraint** — it matches every record — so the startup blank condition
+  reads as "all N participants". Missing values fail value comparisons but are
+  what `has no value` looks for.
+- The **Results panel** (below the summary) shows `X of N participants` and a
+  **paginated** table (20 rows per page, prev/next + "Page x of y", a
+  representative column per kind). Page index is local UI state, reset to the
+  first page on any query change (pager clicks re-render just the results and
+  keep their page). It re-renders on every store change, alongside the summary.
+- A **floating result card** ("fab") is pinned to the lower-right of the
+  viewport — a lightly-rounded white rectangle with a small grey
+  "MATCHING SUBJECTS" header, the live count in a large dark number,
+  "subjects match" beneath, and a blue **Download All** button. The card is
+  display-only (`pointer-events: none`) *except* its button (`pointer-events:
+  auto`), so only the button is clickable and the card never blocks clicks
+  beneath. **Download All** exports every matching subject (all properties) as
+  a `matching-subjects.csv` download.
+- Like the preset selector and the schema content, the **record data is
+  placeholder** — real results come from the product's data source; the
+  evaluator and results UI are the reusable parts.
 
 ## Data contract (schema)
 
@@ -86,7 +110,6 @@ type Property =
   | { id; label; kind: 'enum'; ordered: boolean; values: PropertyValue[] }
   | { id; label; kind: 'boolean' }                       // Yes/No
   | { id; label; kind: 'range'; unit?: string }          // min/max numbers
-  | { id; label; kind: 'minimum'; options: number[] }    // "at least N+"
   | { id; label; kind: 'text' }                          // free-text (LIKE)
 ```
 
@@ -96,8 +119,10 @@ code organization only.
 
 - **enum** — multi-select from fixed values, with the any/all/none operator.
   (`ordered` is inert metadata for a possible future range-style operator.)
-- **boolean / range / minimum** — **no operator**; the value input carries the
-  whole meaning.
+- **boolean** — **no operator**; the value input carries the whole meaning.
+- **range** carries its own operator set (`between`/`gt`/`lt`/`gte`/`lte`);
+  `gte`/`lte` express an open-ended "at least N" / "at most N" range, so
+  there's no separate minimum-only kind.
 - **No per-option counts.** Production won't have per-value match counts, so
   values carry only `id` + `label`. Don't reintroduce counts.
 
@@ -114,7 +139,6 @@ type ConditionOp =
   | 'any' | 'all' | 'none'                          // enum
   | 'between' | 'gt' | 'lt' | 'gte' | 'lte'         // range
   | 'is'                                            // boolean
-  | 'atLeast'                                       // minimum
   | 'contains' | 'startsWith' | 'endsWith' | 'equals' // text
   | 'hasValue' | 'noValue'                          // presence — any kind
 type Condition = {
@@ -124,7 +148,6 @@ type Condition = {
   bool: boolean | null       // boolean
   range: { min: number | null; max: number | null }  // range; gt/gte use min,
                                                       // lt/lte use max
-  minimum: number | null     // minimum
   text: string | null        // text
 }
 type Group = { kind: 'group'; id; combinator; exclude: boolean; children: Node[] }
@@ -229,7 +252,6 @@ preserve them.
        switching between related operators keeps the number. Inputs commit
        **on change (blur/Enter), never on keystroke** — every store update
        fully re-renders, which would steal focus mid-typing.
-     - *minimum*: `is at least` + a dropdown of thresholds rendered as **N+**.
      - *text*: `contains` / `starts with` / `ends with` / `is exactly` + a
        free-text input (commits on change, like the number inputs).
      - **presence** (`has a value` / `has no value`, any kind): the value UI
@@ -348,9 +370,33 @@ query's logic** (different combinator / exclude / nesting).
 
 ---
 
+## Site chrome mockup (not part of the product)
+
+Two static, **non-functional** mockups in `index.html` (outside `#app`, so the
+app's re-renders never touch them) make the page resemble the host ELITE
+Portal — layout only, so the builder looks at home in its eventual page. Omit
+when rebuilding, like the preset selector.
+
+- A **fixed top nav**: the ELITE Portal logo (full SVG with wordmark), nav
+  links (`#87878b`, green `#39ac97` when active/hovered; Explore active with a
+  green underline), a grey download icon, and an avatar. `body` gets
+  `padding-top: var(--nav-h)` and the sticky sidebar offsets by the same, so
+  nothing hides under the nav.
+- A full-width **Explore section header** above the app: an "Explore" title, a
+  sub-tab row (Cohort Discovery active, green underline; same color rules as
+  the nav), and a grey toolbar strip with a green "Hide Filters" control and
+  green action icons. Its title reads "SUBJECTS MATCHED (n)" where **n is the
+  live match count** — the one non-static bit of chrome: `main.ts` updates the
+  `.toolbar-count` span (which lives in `index.html`) inside `renderResults`,
+  alongside the fab.
+
 ## Tech
 
 - Vanilla **TypeScript**, **Vite** dev server with **HMR**, no UI framework.
+- Global font is **DM Sans** (loaded from Google Fonts in `index.html`);
+  falls back to `system-ui`. Because a web font changes text metrics after
+  first paint, the bracket re-measure (driven by a `ResizeObserver` on the
+  tree mount) re-aligns once the font loads — the caveat noted below.
 - DOM is built with a small typed `el(tag, props, ...children)` helper.
 - `strict` TS; type-check with `tsc --noEmit`, build with `vite build`.
 - Do **not** run the dev server or tests as part of automated changes; verify
@@ -372,10 +418,10 @@ query's logic** (different combinator / exclude / nesting).
 - **Value selection** is the row of always-visible toggle pills (see design
   section) — `aria-pressed` buttons, shown only once a property is chosen;
   before that, a "pick a property" placeholder shows. Non-enum kinds swap in
-  their own controls (Yes/No pills, number inputs, N+ dropdown).
+  their own controls (Yes/No pills, number inputs).
 - **Summary phrasing per kind:** enum `is any/all/none of …`; boolean
   `is Yes/No`; range `is between X and Y unit` (or `is greater/less than X`,
-  `is at least/most X` per operator); minimum `is at least N`; text
+  `is at least/most X` per operator); text
   `contains/starts with/ends with/is exactly "…"`; presence
   `has a value` / `has no value` (any kind). Unset values read as
   `(no value)`.
