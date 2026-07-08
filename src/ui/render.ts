@@ -45,9 +45,19 @@ const OP_LABELS: Record<ConditionOp, string> = {
   noValue: 'has no value',
 }
 
-/** Each kind's operator choices; the presence pair is universal. */
+/**
+ * Each kind's operator choices; the presence pair is universal.
+ *
+ * 'all' and 'none' are temporarily withheld from enum's choices: the backend
+ * API design (see the Cohort Builder 2.0 tech design doc) has no leaf
+ * operator for "all of" at all, and "none of" isn't its own primitive either
+ * — it only exists as a NOT wrapped around "any of". Until that's resolved,
+ * don't let the UI promise operators the API can't yet express. The model
+ * still supports both values (EnumOp, evaluate.ts, sql.ts, summary.ts) —
+ * only the picker is restricted, so this is easy to re-enable later.
+ */
 const KIND_OPS: Record<Property['kind'], ConditionOp[]> = {
-  enum: ['any', 'all', 'none', 'hasValue', 'noValue'],
+  enum: ['any', 'hasValue', 'noValue'],
   boolean: ['is', 'hasValue', 'noValue'],
   range: ['between', 'gt', 'lt', 'gte', 'lte', 'hasValue', 'noValue'],
   text: ['contains', 'startsWith', 'endsWith', 'equals', 'hasValue', 'noValue'],

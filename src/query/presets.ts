@@ -64,12 +64,12 @@ export const PRESETS: Preset[] = [
         cmpCond('visitCode', 'gte', 2),
         rangeCond('fieldCenterCode', 100, 400),
         group('OR', false, [
-          cond('dataType', 'all', ['gene_expression', 'protein_abundance']),
+          cond('dataType', 'any', ['gene_expression', 'protein_abundance']),
           textCond('fileName', 'endsWith', '.vcf'),
           cmpCond('fieldCenterCode', 'gt', 250),
         ]),
         group('AND', true, [
-          cond('cohort', 'none', ['arivale']),
+          cond('cohort', 'any', ['arivale']),
           presenceCond('yearsOfEducation', 'noValue'),
         ]),
       ]),
@@ -91,7 +91,7 @@ export const PRESETS: Preset[] = [
       group('AND', false, [
         cond('apoeGenotype', 'any', ['e3_e4', 'e4_e4']),
         cond('age', 'any', ['75_79', '80_84', '85_89', '90plus']),
-        cond('diagnosis', 'none', ['control']),
+        cond('diagnosis', 'any', ['alzheimers', 'mci', 'parkinsons']),
       ]),
   },
   {

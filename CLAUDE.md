@@ -463,3 +463,12 @@ when rebuilding, like the preset selector.
 - **Animal mock data** (Class, Habitat, Diet, …): placeholder content to
   exercise the UI. Real properties/values come from the product's data source;
   only the *schema shape* above is meaningful.
+- **Faceted-filter sidebar mockup** (`ui/facetSidebar.ts`): a non-functional
+  visual placeholder for the host portal's default "browse" sidebar
+  (checkbox facet sections + an "Available Filters" chip row), styled after
+  eliteportal.synapse.org's Cohort Discovery page. It has zero wiring to the
+  query tree or results — clicking anything in it does nothing. The
+  "Query Builder" toolbar button swaps it for the real sidebar and reveals
+  the query builder (header/tree/summary); the results panel stays visible
+  either way. Omit entirely when rebuilding — it exists only to demo the
+  before/after of entering Query Builder mode.

@@ -5,9 +5,10 @@ import { defaultQuery } from './query/model'
 import { PRESETS, getPreset } from './query/presets'
 import { renderTree, alignBrackets } from './ui/render'
 import { renderSidebar } from './ui/sidebar'
+import { renderFacetSidebar } from './ui/facetSidebar'
 import { summarize } from './query/summary'
 import { getProperty } from './data/properties'
-import { RECORDS, RECORD_COUNT, type RecordValue } from './data/records'
+import { RECORDS, type RecordValue } from './data/records'
 import { filterRecords } from './query/evaluate'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
@@ -21,7 +22,9 @@ const summaryText = el('p', { class: 'summary-text' })
 
 // Results: the query run against the mock participants table. The count and a
 // small preview re-render on every store change.
-const resultsCount = el('span', { class: 'results-count' })
+const resultsCountNum = el('span', { class: 'results-count-num' })
+const resultsCountLabel = el('span', { class: 'results-count-label' })
+const resultsCount = el('span', { class: 'results-count' }, resultsCountNum, resultsCountLabel)
 const resultsTable = el('div', { class: 'results-table-wrap' })
 
 // Live count in the static Explore toolbar (markup lives in index.html).
@@ -126,10 +129,18 @@ document.addEventListener('keydown', (e) => {
   }
 })
 
-const shell = el(
-  'main',
-  { class: 'builder' },
-  el('header', { class: 'builder-header' }, el('h1', {}, 'Query Builder')),
+// The header/tree/summary make up the query builder proper; the results
+// panel below is a separate feature and stays visible in both the default
+// "browse" view and Query Builder mode.
+const builderTop = el(
+  'div',
+  {},
+  el(
+    'header',
+    { class: 'builder-header' },
+    el('h1', {}, 'Query Builder'),
+    resultsCount,
+  ),
   treeMount,
   el(
     'section',
@@ -137,21 +148,63 @@ const shell = el(
     el('div', { class: 'summary-head' }, el('h2', {}, 'Reads as')),
     summaryText,
   ),
+)
+
+// The results panel spans the full remaining browser width (unconstrained by
+// the builder's centered max-width), so it lives outside `.builder` in its
+// own flex column alongside it.
+const builderMain = el('main', { class: 'builder' }, builderTop)
+
+const shell = el(
+  'div',
+  { class: 'content-col' },
+  builderMain,
   el(
     'section',
     { class: 'results' },
-    el(
-      'div',
-      { class: 'results-head' },
-      el('h3', {}, 'Results'),
-      resultsCount,
-    ),
+    el('div', { class: 'results-head' }, el('h3', {}, 'Results')),
     resultsTable,
   ),
 )
 
-// Facet sidebar on the left, builder filling the rest.
-app.replaceChildren(el('div', { class: 'app-layout' }, renderSidebar(store), shell), devMenu)
+// Two mutually-exclusive sidebars: the ELITE-portal-style faceted-filter
+// mockup (default "browse" view — a static placeholder, no wiring to the
+// query builder or results) and the real query builder sidebar. The
+// "Query Builder" toolbar button (static markup in index.html) swaps between
+// them and reveals/hides the query builder proper; the results panel is
+// unaffected either way.
+const facetSidebar = renderFacetSidebar()
+const querySidebar = renderSidebar(store)
+
+type ViewMode = 'browse' | 'builder'
+let mode: ViewMode = 'browse'
+
+const qbToggleBtn = document.querySelector<HTMLButtonElement>('.toolbar-qb-btn')
+const qbToggleLabel = document.querySelector<HTMLElement>('.toolbar-qb-label')
+
+function applyMode(): void {
+  facetSidebar.hidden = mode !== 'browse'
+  querySidebar.hidden = mode !== 'builder'
+  builderMain.hidden = mode !== 'builder'
+  qbToggleBtn?.classList.toggle('active', mode === 'builder')
+  if (qbToggleLabel) qbToggleLabel.textContent = mode === 'builder' ? 'Exit Query Builder' : 'Query Builder'
+  // Brackets are measured via getBoundingClientRect, which returns all-zero
+  // rects while the tree sits under `display: none` — so the very first
+  // render (while browse mode hides the builder) bakes in a collapsed
+  // bracket. Recompute once the tree is actually visible.
+  if (mode === 'builder') alignBrackets(treeMount)
+}
+
+qbToggleBtn?.addEventListener('click', () => {
+  mode = mode === 'browse' ? 'builder' : 'browse'
+  applyMode()
+})
+
+app.replaceChildren(
+  el('div', { class: 'app-layout' }, facetSidebar, querySidebar, shell),
+  devMenu,
+)
+applyMode()
 
 /**
  * Colorize the boolean operators in the summary so the sentence carries the
@@ -173,7 +226,8 @@ function renderSummary(): void {
 
 function renderResults(): void {
   const matches = filterRecords(RECORDS, store.get())
-  resultsCount.textContent = `${matches.length.toLocaleString()} of ${RECORD_COUNT.toLocaleString()} participants`
+  resultsCountNum.textContent = matches.length.toLocaleString()
+  resultsCountLabel.textContent = matches.length === 1 ? 'subject matched' : 'subjects matched'
 
   if (toolbarCount) toolbarCount.textContent = matches.length.toLocaleString()
 
