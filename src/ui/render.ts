@@ -1,6 +1,6 @@
 import { el } from '../dom'
-import { PROPERTIES, getProperty } from '../data/properties'
-import type { Property } from '../data/schema'
+import { getProperty } from '../data/properties'
+import type { Property, PropertyValue } from '../data/schema'
 import type { Condition, ConditionOp, Group, Node } from '../query/model'
 import {
   newCondition,
@@ -11,6 +11,7 @@ import {
 } from '../query/model'
 import type { QueryStore } from '../query/store'
 import { draggedPropertyId, endPropertyDrag } from './dnd'
+import { filterProperties, highlight } from './propertySearch'
 import {
   addChild,
   insertChild,
@@ -64,6 +65,18 @@ const KIND_OPS: Record<Property['kind'], ConditionOp[]> = {
 }
 
 const isPresence = (op: ConditionOp): boolean => op === 'hasValue' || op === 'noValue'
+
+/**
+ * Above this many values, an enum's toggle pills stop flowing inline with
+ * the operator text (`display: contents`) and move into a capped-height,
+ * filterable scrolling tray instead — otherwise a property with, say, 100+
+ * values would balloon the condition row into an unusable wall of pills.
+ * Every current schema enum is well under this, so it's dormant today; it
+ * exists for whenever a large enum shows up. Below the threshold, nothing
+ * changes — same pills, same inline flow, same "selection always visible"
+ * behavior the design calls for.
+ */
+const PILL_TRAY_THRESHOLD = 50
 
 /**
  * Drag-and-drop reordering: the sidebar appends new conditions to the root
@@ -226,22 +239,11 @@ function renderCondition(store: QueryStore, cond: Condition): HTMLElement {
     soleCondition,
   )
 
-  // Filterable: 40+ properties — typing beats scrolling. Filters property
-  // labels only, never values (value search lives in the sidebar).
-  const propertySelect = inlineSelect(
-    'summary-property',
-    property ? property.label : 'Choose a property…',
-    PROPERTIES.map((p) => ({
-      label: p.label,
-      selected: p.id === cond.propertyId,
-      onSelect: () => {
-        // Re-picking the current property would needlessly wipe its values.
-        if (p.id !== cond.propertyId)
-          store.update((s) => setProperty(s, cond.id, p.id, defaultOpFor(p.kind)))
-      },
-    })),
-    true,
-  )
+  // Filterable: 40+ properties — typing beats scrolling. Matches property
+  // labels *or* value labels, same as the sidebar: a value hit surfaces its
+  // property with the matching values as clickable pills underneath, so
+  // picking one sets both the property and that value in one click.
+  const propertySelect = propertyPickerMenu(store, cond, property)
 
   const row = el(
     'div',
@@ -291,24 +293,35 @@ function conditionControls(store: QueryStore, cond: Condition, property: Propert
     case 'enum': {
       // All values stay on screen as toggle pills — selection state is always
       // visible. "is none of" selections are exclusions, so they read red.
-      const pills = el(
-        'span',
-        { class: `value-pills${cond.op === 'none' ? ' negated' : ''}` },
-        ...property.values.map((v) => {
-          const selected = cond.valueIds.includes(v.id)
-          return el(
-            'button',
-            {
-              type: 'button',
-              class: `value-pill${selected ? ' selected' : ''}`,
-              'aria-pressed': String(selected),
-              onclick: () => store.update((s) => toggleValue(s, cond.id, v.id)),
-            },
-            v.label,
-          )
-        }),
-      )
-      return [opSelect, pills]
+      const negated = cond.op === 'none'
+      const pill = (v: (typeof property.values)[number]) => {
+        const selected = cond.valueIds.includes(v.id)
+        return el(
+          'button',
+          {
+            type: 'button',
+            class: `value-pill${selected ? ' selected' : ''}`,
+            'aria-pressed': String(selected),
+            onclick: () => store.update((s) => toggleValue(s, cond.id, v.id)),
+          },
+          v.label,
+        )
+      }
+
+      if (property.values.length <= PILL_TRAY_THRESHOLD) {
+        const pills = el(
+          'span',
+          { class: `value-pills${negated ? ' negated' : ''}` },
+          ...property.values.map(pill),
+        )
+        return [opSelect, pills]
+      }
+
+      // Too many values to flow inline — a capped-height scrolling tray with
+      // its own filter input, so finding one value doesn't mean scanning
+      // dozens/hundreds of pills. Same pills, same click-to-toggle; only the
+      // container changes.
+      return [opSelect, valuePillTray(property.values, pill, negated)]
     }
 
     case 'boolean': {
@@ -360,6 +373,59 @@ function conditionControls(store: QueryStore, cond: Condition, property: Propert
       return [opSelect, textInput(cond.text, (v) => store.update((s) => setText(s, cond.id, v)))]
     }
   }
+}
+
+/**
+ * A capped-height, filterable scrolling tray for an enum with more values
+ * than fit comfortably inline (see `PILL_TRAY_THRESHOLD`). Same pills, same
+ * click-to-toggle — only the container changes: instead of flowing with the
+ * operator text, they sit in a scrollable box with a filter input above it,
+ * so finding one value doesn't mean scanning the whole list. Local DOM
+ * state only (hiding pills), not store state — a store update would
+ * re-render and steal focus from the filter input mid-typing.
+ */
+function valuePillTray(
+  values: readonly PropertyValue[],
+  pill: (v: PropertyValue) => HTMLElement,
+  negated: boolean,
+): HTMLElement {
+  const items = values.map((v) => ({ value: v, node: pill(v) }))
+  const emptyNote = el('div', { class: 'menu-empty' }, 'No matches')
+  const applyFilter = (q: string): void => {
+    let any = false
+    for (const { value, node } of items) {
+      const show = value.label.toLowerCase().includes(q)
+      node.hidden = !show
+      if (show) any = true
+    }
+    emptyNote.hidden = any
+  }
+  applyFilter('')
+
+  const input = el('input', {
+    type: 'search',
+    class: 'value-pill-filter',
+    placeholder: `Filter ${values.length} values…`,
+    'aria-label': 'Filter values',
+    dataset: { nodrag: 'true' },
+    oninput: (e: Event) => applyFilter((e.target as HTMLInputElement).value.trim().toLowerCase()),
+  })
+
+  return el(
+    // Keep the base "value-pills" class (plus "negated") so the existing
+    // is-none-of red-selection CSS still matches pills inside this
+    // container; "value-pill-tray" overrides its `display: contents` with
+    // a real scrollable box.
+    'span',
+    { class: `value-pills value-pill-tray${negated ? ' negated' : ''}` },
+    input,
+    el(
+      'div',
+      { class: 'value-pill-scroll', dataset: { nodrag: 'true' } },
+      ...items.map((i) => i.node),
+      emptyNote,
+    ),
+  )
 }
 
 /**
@@ -450,6 +516,129 @@ function textButton(label: string, onClick: () => void): HTMLElement {
     { type: 'button', class: 'text-btn', dataset: { nodrag: 'true' }, onclick: onClick },
     label,
   )
+}
+
+/**
+ * The condition's property picker. Like `inlineSelect` below (filterable,
+ * single-select, resets on open), but matches property labels *or* value
+ * labels — same search rules as the sidebar (`propertySearch.ts`). A value
+ * hit renders its property with the matching values as clickable pills
+ * underneath; picking a pill sets the property *and* that value on this
+ * condition in one action, instead of requiring a second step afterward.
+ */
+function propertyPickerMenu(
+  store: QueryStore,
+  cond: Condition,
+  property: Property | undefined,
+): HTMLElement {
+  const pickProperty = (p: Property) => {
+    // Re-picking the current property would needlessly wipe its values.
+    if (p.id !== cond.propertyId) store.update((s) => setProperty(s, cond.id, p.id, defaultOpFor(p.kind)))
+  }
+  const pickPropertyWithValue = (p: Property, valueId: string) =>
+    store.update((s) => toggleValue(setProperty(s, cond.id, p.id, defaultOpFor(p.kind)), cond.id, valueId))
+
+  const rows = el('div', { class: 'menu-rows' })
+  const emptyNote = el('div', { class: 'menu-empty' }, 'No matches')
+
+  const closeMenu = (from: HTMLElement) => from.closest('details')?.removeAttribute('open')
+
+  const buildRows = (q: string): void => {
+    const facets = filterProperties(q)
+    emptyNote.hidden = facets.length > 0
+    rows.replaceChildren(
+      ...facets.map(({ property: p, valueHits }) =>
+        el(
+          'div',
+          { class: 'menu-facet' },
+          el(
+            'button',
+            {
+              type: 'button',
+              class: `menu-item${p.id === cond.propertyId ? ' selected' : ''}`,
+              onclick: (e: Event) => {
+                closeMenu(e.currentTarget as HTMLElement)
+                pickProperty(p)
+              },
+            },
+            ...highlight(p.label, q),
+          ),
+          valueHits.length > 0 &&
+            el(
+              'div',
+              { class: 'menu-value-hits' },
+              ...valueHits.map((v) =>
+                el(
+                  'button',
+                  {
+                    type: 'button',
+                    class: 'menu-value-hit',
+                    title: `Set ${p.label} is any of ${v.label}`,
+                    onclick: (e: Event) => {
+                      closeMenu(e.currentTarget as HTMLElement)
+                      pickPropertyWithValue(p, v.id)
+                    },
+                  },
+                  ...highlight(v.label, q),
+                ),
+              ),
+            ),
+        ),
+      ),
+    )
+  }
+  buildRows('')
+
+  const input = el('input', {
+    type: 'search',
+    class: 'menu-filter',
+    placeholder: 'Filter…',
+    'aria-label': 'Filter properties or values',
+    oninput: () => {
+      buildRows(input.value.trim().toLowerCase())
+      syncClear()
+    },
+    onkeydown: (e: Event) => {
+      if ((e as KeyboardEvent).key === 'Enter') rows.querySelector<HTMLElement>('.menu-item')?.click()
+    },
+  }) as HTMLInputElement
+  const clearBtn = el(
+    'button',
+    {
+      type: 'button',
+      class: 'filter-clear',
+      title: 'Clear filter',
+      'aria-label': 'Clear filter',
+      onclick: () => {
+        input.value = ''
+        buildRows('')
+        syncClear()
+        input.focus()
+      },
+    },
+    '✕',
+  )
+  const syncClear = () => {
+    clearBtn.hidden = input.value === ''
+  }
+  syncClear()
+
+  const details = el(
+    'details',
+    { class: 'menu inline-menu', dataset: { nodrag: 'true' } },
+    el('summary', { class: 'inline-select summary-property' }, property ? property.label : 'Choose a property…'),
+    el('div', { class: 'menu-list' }, el('div', { class: 'menu-filter-bar' }, input, clearBtn, emptyNote), rows),
+  ) as HTMLDetailsElement
+
+  // Reset + focus the filter each time the menu opens.
+  details.addEventListener('toggle', () => {
+    if (!details.open) return
+    input.value = ''
+    buildRows('')
+    syncClear()
+    input.focus()
+  })
+  return details
 }
 
 /**

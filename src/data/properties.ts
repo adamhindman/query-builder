@@ -1,4 +1,12 @@
-import type { Property } from './schema'
+import type { Property, PropertyValue } from './schema'
+
+// Dummy filler so Study Code has 110 values total — exercises the
+// value-pill scrolling tray (PILL_TRAY_THRESHOLD in ui/render.ts), which
+// only kicks in past 20 values and has no real property large enough yet.
+const DUMMY_STUDY_CODES: PropertyValue[] = Array.from({ length: 103 }, (_, i) => {
+  const n = String(i + 8).padStart(3, '0')
+  return { id: `study${n}`, label: `STUDY${n}` }
+})
 
 /**
  * Cohort-definition fields imported from the ELITE "Curated 47" spec used by
@@ -148,6 +156,7 @@ export const PROPERTIES: Property[] = [
       { id: 'lc', label: 'LC' },
       { id: 'lg', label: 'LG' },
       { id: 'llfs', label: 'LLFS' },
+      ...DUMMY_STUDY_CODES,
     ],
   },
   {
@@ -238,6 +247,13 @@ export const PROPERTIES: Property[] = [
     label: 'File Name',
     kind: 'text',
   },
+  // Placeholder: not in the ELITE-47 spec — mirrors the "File Size Bytes"
+  // column at susheelvarma.com/cohort-builder/'s Data files table.
+  {
+    id: 'fileSizeBytes',
+    label: 'File Size (Bytes)',
+    kind: 'range',
+  },
 
   // ── Assessment Availability ─────────────────────────────────────────
   {
@@ -258,7 +274,18 @@ export const PROPERTIES: Property[] = [
   {
     id: 'hasCognitiveAssessment',
     label: 'Has Cognitive Assessment',
-    kind: 'boolean',
+    kind: 'enum',
+    ordered: false,
+    values: [
+      { id: 'mmse', label: 'MMSE' },
+      { id: 'moca', label: 'MoCA' },
+      { id: 'cdr', label: 'CDR' },
+      { id: 'cognitive_score', label: 'CognitiveScore' },
+      { id: 'casi', label: 'CASI' },
+      { id: 'digit_span', label: 'DigitSpan' },
+      { id: 'logical_memory', label: 'LogicalMemory' },
+      { id: 'category_fluency', label: 'CategoryFluency' },
+    ],
   },
 
   // ── Genetic Stratification ──────────────────────────────────────────

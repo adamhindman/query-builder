@@ -2,15 +2,18 @@ import { PROPERTIES } from './properties'
 import type { Property } from './schema'
 
 /**
- * A mock tabular dataset the query builder runs against — a "participants"
- * table. It's generated once from the schema so every property has plausible
- * values of the right shape, and it's what the results panel filters and
- * counts.
+ * A mock tabular dataset the query builder runs against — each row is one
+ * **file** (Synapse-style `syn`-prefixed id), not a participant: the results
+ * table shows a data-files view (Syn ID, File Name, Data Type, Assay Type,
+ * File Format, Is Multi Specimen, File Size, Study Code), mirroring
+ * susheelvarma.com/cohort-builder/'s "Data files" table. It's generated once
+ * from the schema so every property has plausible values of the right shape,
+ * and it's what the results panel filters and counts.
  *
  * Placeholder content, like the animal/ELITE mock elsewhere: the *shapes*
- * (one value per property kind, some missing values, some multi-valued enums)
- * are what matter, not the specific rows. Swap in the real data source and the
- * evaluator/results UI keep working unchanged.
+ * (one value per property kind, some missing values) are what matter, not
+ * the specific rows. Swap in the real data source and the evaluator/results
+ * UI keep working unchanged.
  *
  * Generation is seeded, so the same rows appear every load — stable counts
  * while you edit a query.
@@ -26,9 +29,6 @@ export type ParticipantRecord = {
 }
 
 export const RECORD_COUNT = 25000
-
-/** Enums a participant can hold *several* of (so the `all` operator matters). */
-const MULTI_ENUMS = new Set(['dataType', 'assayType', 'fileFormat'])
 
 /** Fraction of scalar/single values left missing, so presence ops are real. */
 const MISSING = 0.08
@@ -57,22 +57,23 @@ function genFileName(rand: () => number, index: number): string {
 function genValue(property: Property, rand: () => number, index: number): RecordValue {
   switch (property.kind) {
     case 'enum':
-      if (MULTI_ENUMS.has(property.id)) {
-        // A subset (possibly empty) — empty reads as "no value" for presence.
-        return property.values.filter(() => rand() < 0.33).map((v) => v.id)
-      }
       if (rand() < MISSING) return null
       return [pick(rand, property.values).id]
     case 'boolean':
       return rand() < MISSING ? null : rand() < 0.5
     case 'range':
       if (rand() < MISSING) return null
-      // visitCode is a small visit count; other range properties (e.g. field
-      // center code) span a wider band.
-      return property.id === 'visitCode' ? 1 + Math.floor(rand() * 5) : 100 + Math.floor(rand() * 401)
+      if (property.id === 'visitCode') return 1 + Math.floor(rand() * 5) // small visit count
+      if (property.id === 'fileSizeBytes') return 1_000_000 + Math.floor(rand() * 29_999_000_000) // ~1MB–30GB
+      return 100 + Math.floor(rand() * 401) // other range properties (e.g. field center code)
     case 'text':
       return rand() < MISSING ? null : genFileName(rand, index)
   }
+}
+
+/** A Synapse-style file id: "syn" + 8 digits. */
+function genSynId(rand: () => number): string {
+  return `syn${String(Math.floor(rand() * 1e8)).padStart(8, '0')}`
 }
 
 function generate(): ParticipantRecord[] {
@@ -81,7 +82,7 @@ function generate(): ParticipantRecord[] {
   for (let i = 0; i < RECORD_COUNT; i++) {
     const values: Record<string, RecordValue> = {}
     for (const property of PROPERTIES) values[property.id] = genValue(property, rand, i + 1)
-    records.push({ id: `P-${String(i + 1).padStart(4, '0')}`, values })
+    records.push({ id: genSynId(rand), values })
   }
   return records
 }

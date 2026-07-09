@@ -70,15 +70,16 @@ confirmed in words. Keep this feature.
 
 ## Mock results (query evaluation)
 
-The builder runs its query against an in-memory **mock participants table** and
-shows live results — so the query does something, not just render.
+The builder runs its query against an in-memory **mock data-files table** —
+each row is one file, Synapse-style `syn`-prefixed id (`syn` + 8 digits) — and
+shows live results, so the query does something, not just render.
 
 - `data/records.ts` generates a **seeded** (stable across reloads) set of
-  ~25,000 records from the schema: each property gets a kind-appropriate value —
-  enum → array of value ids (a few enums are **multi-valued** per record so
-  `all` is meaningful; the rest single), boolean → true/false, range →
-  a number, text → a filename-like string. A fraction of values are **missing**
-  (`null` / empty) so the presence operators are exercised.
+  ~25,000 records from the schema: each property gets a kind-appropriate,
+  **single**-valued value — enum → a one-element array of a value id, boolean
+  → true/false, range → a number, text → a filename-like string. A fraction
+  of values are **missing** (`null` / empty) so the presence operators are
+  exercised.
 - `query/evaluate.ts` is the runtime twin of `summary.ts`: same operator
   semantics, evaluated against a record. `matchesGroup` handles
   combinator + exclude (an **empty group constrains nothing** → matches);
@@ -133,6 +134,35 @@ shows live results — so the query does something, not just render.
     places the count appears (the header badge and the static toolbar's
     "SUBJECTS MATCHED (n)"). The exact small count is never surfaced
     anywhere in the UI once it's below threshold — only "<20".
+- **The total match count is rounded**, not exact — at or above the
+  suppression threshold, it's rounded to the nearest 10
+  (`Math.round(matches.length / 10) * 10`) and prefixed with **"≈"**, with a
+  small orange **"Rounded"** pill next to it (`.results-rounded-badge`,
+  reusing the same `--or`/`--or-soft` orange as the low-count badge). Below
+  the count, a **"How this number was computed" disclosure link**
+  (`.results-count-disclosure`) opens the info modal with an explanation —
+  currently **placeholder copy** ("Insert methodology here...") to be
+  replaced with the real methodology later. None of this applies to the two
+  other count states: exact **0** (not sensitive, shown as-is) or the
+  suppressed **"<20"** state (already hides the number entirely, so there's
+  nothing further to round). The static toolbar's "SUBJECTS MATCHED (n)"
+  shows the same rounded/approximate value, so the two counts on screen
+  never contradict each other.
+- **Sensitive fields (not yet implemented):** `age`, `race`, `sex`,
+  `ethnicGroupCode`, `diagnosis`, `cohort`, `countryCode`, and
+  `apoeGenotype` are considered sensitive quasi-identifiers. Two more were
+  called out by name but don't exist as distinct properties in the current
+  schema — "Age Bin" (the existing `age` property is already bin-valued, so
+  this may just *be* `age`) and "Diagnosis Macro" (a coarser grouping of
+  `diagnosis` that isn't modeled yet). **If this app ever shows per-value
+  result *counts*** for these fields (e.g. facet statistics, a value-level
+  breakdown — it doesn't today; only the single total match count exists,
+  gated by the suppression threshold above), those counts must be rounded
+  or otherwise post-processed before display, the same way the backend
+  design doc's `FacetPostProcessor` framework (ROUNDING / NOISE, §4.5–4.7)
+  protects facet statistics against arithmetic/differential attacks. This
+  is a placeholder note for that future work — nothing in the current UI
+  exposes per-value counts, so there's nothing to round yet.
 - The match-count badge **pulses** (a quick CSS scale-up-then-settle,
   `.pulse` / `@keyframes results-count-pulse`) whenever the match count
   actually changes value — tracked via a `lastMatchCount` variable in
@@ -357,8 +387,9 @@ This section describes the **real, functional** property sidebar
 (`ui/sidebar.ts`) that sits alongside the query builder. It's a different
 thing from the **faceted-filter sidebar mockup** (`ui/facetSidebar.ts`,
 described under "Not part of the product") — that one is a non-functional
-placeholder shown in the default "browse" view, before the user enters Query
-Builder mode; this one is the always-live sidebar shown once they do.
+placeholder shown in the "browse" view, reached via the "Query Builder"
+toolbar button's toggle (the app **opens in Query Builder mode** by
+default); this one is the always-live sidebar shown while in that mode.
 
 A **left sidebar** lists every **property** as a selectable row in one flat
 list (**no categories** — real data has none). Its purpose is to splay the
@@ -521,12 +552,22 @@ when rebuilding, like the preset selector.
   document-level click listener closes any open menu on outside clicks, and
   re-renders naturally close them too. Single-select items also explicitly
   close their own menu, so no-op picks don't leave it hanging open.
-- **The property dropdown is filterable** (the operator and N+ ones are not):
-  a sticky filter input at the top of its menu narrows the list as you type —
-  matching **property labels only, never values** (value search lives in the
-  sidebar). Enter picks the first remaining option; the filter resets and
-  refocuses each time the menu opens. Filtering is local DOM state (hiding
-  items), not store state — a store update would re-render and steal focus.
+- **The property dropdown is filterable** (the operator one is not): a
+  sticky filter input at the top of its menu narrows the list as you type —
+  and, like the sidebar, matches **property labels *or* value labels**
+  (`propertyPickerMenu` in `ui/render.ts`, sharing its matching/highlight
+  logic with the sidebar via `ui/propertySearch.ts`). A value hit shows the
+  matching values as clickable amber pills under their property (substring
+  highlighted, same `<mark>` treatment as the sidebar); clicking one sets
+  *both* the property and that value on the condition in a single action —
+  `setProperty` then `toggleValue`, composed directly rather than round-
+  tripping through two store updates. Clicking the property row itself (not
+  a value pill) behaves as before: sets the property with no value chosen.
+  Enter picks the first remaining property row (value-hit pills aren't
+  reachable via Enter — click only); the filter resets and refocuses each
+  time the menu opens. Filtering rebuilds the row list from scratch on each
+  keystroke (local DOM state, not store state — a store update would
+  re-render and steal focus).
 - **Bracket drawing:** the bracket container is an absolutely-positioned strip;
   the vertical line and per-child branch curves are child divs created during
   the measurement pass (each is a box with left+bottom borders and a rounded
@@ -544,14 +585,17 @@ when rebuilding, like the preset selector.
   exercise the UI. Real properties/values come from the product's data source;
   only the *schema shape* above is meaningful.
 - **Faceted-filter sidebar mockup** (`ui/facetSidebar.ts`): a non-functional
-  visual placeholder for the host portal's default "browse" sidebar
+  visual placeholder for the host portal's own default "browse" sidebar
   (checkbox facet sections + an "Available Filters" chip row), styled after
   eliteportal.synapse.org's Cohort Discovery page. It has zero wiring to the
-  query tree or results — clicking anything in it does nothing. The
-  "Query Builder" toolbar button swaps it for the real sidebar and reveals
-  the query builder (header/tree/summary); the results panel stays visible
-  either way. Omit entirely when rebuilding — it exists only to demo the
-  before/after of entering Query Builder mode.
+  query tree or results — clicking anything in it does nothing. **This
+  prototype itself opens straight into Query Builder mode** (`mode:
+  ViewMode = 'builder'` in `main.ts`) rather than this browse mockup, since
+  the query builder is the actual point of the demo; the "Query Builder"
+  toolbar button toggles back to the browse mockup and forth again. The
+  results panel stays visible either way. Omit the mockup entirely when
+  rebuilding — it exists only to demo the before/after of leaving Query
+  Builder mode.
   - **Leaving the query builder resets the query.** The facet mockup can't
     express the query builder's full range (nested groups, OR, NOT) — there's
     no faithful way to hand a complex tree back to a flat facet checklist. So

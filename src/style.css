@@ -535,9 +535,9 @@ body {
 }
 
 .builder-header {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 1.25rem;
 }
 
@@ -580,13 +580,24 @@ body {
    number so the count itself draws the eye, and a muted label beside it.
    Lightly rounded, not a full pill. */
 .builder-header .results-count {
+  /* Out of flow — a tall badge here would otherwise push the tree/summary
+     below it down every time it grows (e.g. the disclosure link appearing). */
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.9rem 0.7rem;
+  border-radius: 3px;
+  background: color-mix(in srgb, #39ac97 12%, white);
+  transform-origin: center;
+}
+.results-count-row {
   display: inline-flex;
   align-items: baseline;
   gap: 0.4rem;
-  padding: 0.4rem 0.9rem;
-  border-radius: 6px;
-  background: color-mix(in srgb, #39ac97 12%, white);
-  transform-origin: center;
 }
 /* Draws the eye when the match count changes: a quick grow-then-settle,
    retriggered in JS (main.ts) only when the number actually changes. */
@@ -620,6 +631,23 @@ body {
 .results-count-label {
   font-size: 0.9rem;
   font-weight: 500;
+  color: var(--ink-soft);
+}
+
+/* Sits inside the count badge, centered beneath the number row; shown only
+   when the count is actually rounded (not the suppressed "<20" state, not
+   exact 0). */
+.results-count-disclosure {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.76rem;
+  color: var(--ink-faint);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.results-count-disclosure:hover {
   color: var(--ink-soft);
 }
 
@@ -1091,6 +1119,51 @@ summary.inline-select:hover {
   background: var(--gray-100);
 }
 
+/* The property picker's rows: one per matching property, each optionally
+   followed by a row of matched-value pills (see propertyPickerMenu). */
+.menu-rows {
+  display: flex;
+  flex-direction: column;
+}
+.menu-facet {
+  display: flex;
+  flex-direction: column;
+}
+.menu-facet .menu-item {
+  width: 100%;
+}
+.menu-value-hits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0.05rem 0.5rem 0.35rem;
+}
+.menu-value-hit {
+  border: 1px solid var(--yellow);
+  background: var(--yellow-bg);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.12rem 0.55rem;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.menu-value-hit:hover {
+  border-color: var(--yellow-dark);
+  color: var(--yellow-dark);
+}
+/* Matched substrings, in property labels and hit pills alike. */
+.inline-menu mark {
+  background: var(--yellow-bg);
+  color: inherit;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+.menu-value-hit mark {
+  background: var(--yellow);
+}
+
 /* Filter row atop a filterable menu (the property dropdown): sticky, so it
    stays put while the list scrolls. Negative margins span the list's padding;
    the matching negative `top` keeps it flush against the scrollport. */
@@ -1194,6 +1267,43 @@ summary.inline-select:hover {
    gap), rather than forming their own column. */
 .value-pills {
   display: contents;
+}
+/* Large enums (see PILL_TRAY_THRESHOLD): overrides the plain `.value-pills`
+   display:contents above with a real, boxed, scrollable container — same
+   pills, but they no longer flow inline with the operator text. */
+.value-pills.value-pill-tray {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  margin-top: 0.3rem;
+}
+.value-pill-filter {
+  font: inherit;
+  font-size: 0.82rem;
+  width: 180px;
+  height: 30px;
+  padding: 0 0.6rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--surface);
+}
+.value-pill-filter::placeholder {
+  color: var(--ink-faint);
+}
+.value-pill-filter:focus-visible {
+  outline: 2px solid var(--and);
+  outline-offset: 1px;
+}
+.value-pill-scroll {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0.35rem;
+  max-height: 7.5rem;
+  overflow-y: auto;
+  padding: 0.1rem 0.15rem;
 }
 .value-pill {
   border: 1px solid var(--line);

@@ -25,14 +25,55 @@ const summaryText = el('p', { class: 'summary-text' })
 // small preview re-render on every store change.
 const resultsCountNum = el('span', { class: 'results-count-num' })
 const resultsCountLabel = el('span', { class: 'results-count-label' })
-const resultsCount = el('span', { class: 'results-count' }, resultsCountNum, resultsCountLabel)
+const resultsCountRow = el('span', { class: 'results-count-row' }, resultsCountNum, resultsCountLabel)
+// Explains the rounding above, shown only alongside a rounded (i.e. not
+// suppressed, not zero) count. Lives inside the count badge itself,
+// centered beneath the number row.
+const resultsCountDisclosure = el(
+  'button',
+  {
+    type: 'button',
+    class: 'results-count-disclosure',
+    onclick: () =>
+      infoModal(
+        'How this number was computed',
+        el(
+          'div',
+          {},
+          // Placeholder copy — to be filled in with the real methodology later.
+          el('p', {}, 'Result counts have been modified to protect privacy.'),
+          el(
+            'p',
+            {},
+            'Here is the methodology: Insert methodology here. Lorem ipsum dolor sit amet, ',
+            'consectetuer adapiscing elit, sed do euismod tempore incidunt ut lore et dolore.',
+          ),
+        ),
+      ),
+  },
+  'Results approximated.',
+)
+const resultsCount = el(
+  'div',
+  { class: 'results-count' },
+  resultsCountRow,
+  resultsCountDisclosure,
+)
 const resultsTable = el('div', { class: 'results-table-wrap' })
 
 // Live count in the static Explore toolbar (markup lives in index.html).
 const toolbarCount = document.querySelector<HTMLElement>('.toolbar-count')
 
 // Columns spanning the kinds — id plus a representative property of each.
-const RESULT_COLUMNS = ['age', 'sex', 'diagnosis', 'cohort', 'dataType', 'visitCode', 'fileName']
+const RESULT_COLUMNS = [
+  'fileName',
+  'dataType',
+  'assayType',
+  'fileFormat',
+  'isMultiSpecimen',
+  'fileSizeBytes',
+  'studyCode',
+]
 const PAGE_SIZE = 25
 
 // Privacy suppression threshold: a cohort this small risks re-identifying
@@ -79,6 +120,18 @@ function isNumericColumn(propertyId: string): boolean {
   return getProperty(propertyId)?.kind === 'range'
 }
 
+/** "3.8 GB" / "512 MB" / "820 bytes" — human-readable, like the reference. */
+function formatBytes(bytes: number): string {
+  const units = ['bytes', 'KB', 'MB', 'GB']
+  let n = bytes
+  let unit = 0
+  while (n >= 1024 && unit < units.length - 1) {
+    n /= 1024
+    unit++
+  }
+  return `${unit === 0 ? n : n.toFixed(1)} ${units[unit]}`
+}
+
 /** Format a record's value for a cell, using the property to label enum ids. */
 function formatCell(propertyId: string, value: RecordValue): string {
   if (value == null || (Array.isArray(value) && value.length === 0)) return '—'
@@ -87,6 +140,7 @@ function formatCell(propertyId: string, value: RecordValue): string {
     return value.map((id) => property.values.find((v) => v.id === id)?.label ?? id).join(', ')
   }
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  if (propertyId === 'fileSizeBytes' && typeof value === 'number') return formatBytes(value)
   return String(value)
 }
 
@@ -208,7 +262,7 @@ const facetSidebar = renderFacetSidebar()
 const querySidebar = renderSidebar(store)
 
 type ViewMode = 'browse' | 'builder'
-let mode: ViewMode = 'browse'
+let mode: ViewMode = 'builder'
 
 const qbToggleBtn = document.querySelector<HTMLButtonElement>('.toolbar-qb-btn')
 const qbToggleLabel = document.querySelector<HTMLElement>('.toolbar-qb-label')
@@ -289,13 +343,24 @@ function renderResults(): void {
     resultsCount.classList.add('pulse')
   }
   // A non-zero count below the suppression threshold is withheld — shown
-  // only as "<20", never the exact (identifying) small number.
+  // only as "<20", never the exact (identifying) small number. Above the
+  // threshold, the count itself is never exact either — it's rounded to the
+  // nearest 10 and marked "≈", with a disclosure link explaining why
+  // (placeholder methodology for now).
   const belowThreshold = matches.length > 0 && matches.length < SUPPRESSION_THRESHOLD
-  resultsCountNum.textContent = belowThreshold ? `<${SUPPRESSION_THRESHOLD}` : matches.length.toLocaleString()
-  resultsCountLabel.textContent = belowThreshold || matches.length !== 1 ? 'subjects matched' : 'subject matched'
+  const isRounded = !belowThreshold && matches.length > 0
+  const roundedCount = Math.round(matches.length / 10) * 10
+  const displayCount = belowThreshold
+    ? `<${SUPPRESSION_THRESHOLD}`
+    : isRounded
+      ? `≈${roundedCount.toLocaleString()}`
+      : matches.length.toLocaleString() // exact 0 — not sensitive, shown as-is
+  resultsCountNum.textContent = displayCount
+  resultsCountLabel.textContent = 'matches'
   resultsCount.classList.toggle('low-count', belowThreshold)
+  resultsCountDisclosure.hidden = !isRounded
 
-  if (toolbarCount) toolbarCount.textContent = belowThreshold ? `<${SUPPRESSION_THRESHOLD}` : matches.length.toLocaleString()
+  if (toolbarCount) toolbarCount.textContent = displayCount
 
   clear(resultsTable)
   if (matches.length === 0) {
@@ -338,7 +403,7 @@ function renderResults(): void {
           'tr',
           {},
           el('th', { class: 'th-check' }),
-          headerCell('ID', headerIcon(HELP_SVG)),
+          headerCell('Syn ID', headerIcon(HELP_SVG)),
           ...RESULT_COLUMNS.map((id) => {
             const th = headerCell(
               getProperty(id)?.label ?? id,

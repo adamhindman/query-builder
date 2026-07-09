@@ -81,7 +81,7 @@ export const PRESETS: Preset[] = [
       group('AND', false, [
         cond('diagnosis', 'any', ['alzheimers', 'mci']),
         boolCond('hasBiomarkerData', true),
-        boolCond('hasCognitiveAssessment', true),
+        presenceCond('hasCognitiveAssessment', 'hasValue'),
       ]),
   },
   {
@@ -192,7 +192,7 @@ export const PRESETS: Preset[] = [
           ]),
           group('AND', false, [
             cond('cohort', 'any', ['chs', 'sof']),
-            boolCond('hasCognitiveAssessment', true),
+            presenceCond('hasCognitiveAssessment', 'hasValue'),
             rangeCond('fieldCenterCode', 1, 15),
           ]),
         ]),

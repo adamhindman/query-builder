@@ -1,6 +1,4 @@
 import { el, clear } from '../dom'
-import { PROPERTIES } from '../data/properties'
-import type { Property, PropertyValue } from '../data/schema'
 import type { Condition } from '../query/model'
 import {
   addChild,
@@ -12,6 +10,7 @@ import {
 } from '../query/model'
 import type { QueryStore } from '../query/store'
 import { startPropertyDrag, endPropertyDrag } from './dnd'
+import { filterProperties, highlight } from './propertySearch'
 
 /**
  * Left sidebar: every property as a selectable row in one flat, filterable
@@ -33,43 +32,6 @@ import { startPropertyDrag, endPropertyDrag } from './dnd'
  * toggle: properties used by any condition in the tree get an "in use"
  * highlight, kept current via a store subscription.
  */
-
-type FacetView = {
-  property: Property
-  /** Values whose labels match the search — shown as clickable pills. */
-  valueHits: PropertyValue[]
-}
-
-/**
- * Filter by property label OR value label. A value match keeps the property
- * visible and carries the matching values along as pills.
- */
-function filterProperties(q: string): FacetView[] {
-  return PROPERTIES.flatMap((property): FacetView[] => {
-    if (!q) return [{ property, valueHits: [] }]
-    const valueHits =
-      property.kind === 'enum'
-        ? property.values.filter((v) => v.label.toLowerCase().includes(q))
-        : []
-    const nameHit = property.label.toLowerCase().includes(q)
-    return nameHit || valueHits.length > 0 ? [{ property, valueHits }] : []
-  })
-}
-
-/** The label with every occurrence of the search text wrapped in <mark>. */
-function highlight(label: string, q: string): (string | HTMLElement)[] {
-  if (!q) return [label]
-  const lower = label.toLowerCase()
-  const parts: (string | HTMLElement)[] = []
-  let i = 0
-  for (let at = lower.indexOf(q); at !== -1; at = lower.indexOf(q, i)) {
-    if (at > i) parts.push(label.slice(i, at))
-    parts.push(el('mark', {}, label.slice(at, at + q.length)))
-    i = at + q.length
-  }
-  if (i < label.length) parts.push(label.slice(i))
-  return parts
-}
 
 export function renderSidebar(store: QueryStore): HTMLElement {
   // Append to the end of the topmost (root) group; the root's id is the
