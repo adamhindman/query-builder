@@ -35,6 +35,13 @@ const toolbarCount = document.querySelector<HTMLElement>('.toolbar-count')
 const RESULT_COLUMNS = ['age', 'sex', 'diagnosis', 'cohort', 'dataType', 'visitCode', 'fileName']
 const PAGE_SIZE = 25
 
+// Privacy suppression threshold: a cohort this small risks re-identifying
+// individuals, so row-level results are withheld whenever 0 < count <
+// threshold (a count of exactly 0 is fine — it just means nobody matches,
+// nothing to protect). Mirrors the "count threshold gate" in the Cohort
+// Builder 2.0 backend design doc (SUPPRESSION_THRESHOLD, default 20).
+const SUPPRESSION_THRESHOLD = 20
+
 // Decorative header icons (sort/help/filter) — mockup chrome like the nav;
 // the table doesn't actually sort or filter yet.
 const SORT_SVG =
@@ -265,17 +272,53 @@ function renderSummary(): void {
   summaryText.innerHTML = summaryHtml(summarize(store.get()))
 }
 
+// Re-triggered only when the match count actually changes (not on every
+// render — pager clicks call renderResults too, but rarely change the
+// count), so the badge doesn't pulse on every keystroke-driven re-render.
+let lastMatchCount: number | null = null
+
 function renderResults(): void {
   const matches = filterRecords(RECORDS, store.get())
-  resultsCountNum.textContent = matches.length.toLocaleString()
-  resultsCountLabel.textContent = matches.length === 1 ? 'subject matched' : 'subjects matched'
+  if (matches.length !== lastMatchCount) {
+    lastMatchCount = matches.length
+    // Restart the CSS animation: removing the class, forcing a reflow (the
+    // offsetWidth read), then re-adding it — a class re-add alone wouldn't
+    // restart an already-applied animation.
+    resultsCount.classList.remove('pulse')
+    void resultsCount.offsetWidth
+    resultsCount.classList.add('pulse')
+  }
+  // A non-zero count below the suppression threshold is withheld — shown
+  // only as "<20", never the exact (identifying) small number.
+  const belowThreshold = matches.length > 0 && matches.length < SUPPRESSION_THRESHOLD
+  resultsCountNum.textContent = belowThreshold ? `<${SUPPRESSION_THRESHOLD}` : matches.length.toLocaleString()
+  resultsCountLabel.textContent = belowThreshold || matches.length !== 1 ? 'subjects matched' : 'subject matched'
+  resultsCount.classList.toggle('low-count', belowThreshold)
 
-  if (toolbarCount) toolbarCount.textContent = matches.length.toLocaleString()
+  if (toolbarCount) toolbarCount.textContent = belowThreshold ? `<${SUPPRESSION_THRESHOLD}` : matches.length.toLocaleString()
 
   clear(resultsTable)
   if (matches.length === 0) {
     resultsPage = 0
     resultsTable.appendChild(el('p', { class: 'results-empty' }, 'No participants match this query.'))
+    return
+  }
+  if (belowThreshold) {
+    resultsPage = 0
+    resultsTable.appendChild(
+      el(
+        'div',
+        { class: 'results-suppressed' },
+        el('p', { class: 'results-suppressed-title' }, 'Too few matching subjects to display'),
+        el(
+          'p',
+          { class: 'results-suppressed-body' },
+          `Fewer than ${SUPPRESSION_THRESHOLD} subjects match this query. To protect participant `,
+          'privacy, individual results aren’t shown for cohorts this small — remove or broaden ',
+          'some filters to see results.',
+        ),
+      ),
+    )
     return
   }
 

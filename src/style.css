@@ -586,11 +586,36 @@ body {
   padding: 0.4rem 0.9rem;
   border-radius: 6px;
   background: color-mix(in srgb, #39ac97 12%, white);
+  transform-origin: center;
+}
+/* Draws the eye when the match count changes: a quick grow-then-settle,
+   retriggered in JS (main.ts) only when the number actually changes. */
+.builder-header .results-count.pulse {
+  animation: results-count-pulse 0.35s ease-out;
+}
+@keyframes results-count-pulse {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 .results-count-num {
   font-size: 1.3rem;
   font-weight: 700;
   color: #39ac97;
+}
+/* Below the suppression threshold: the badge turns orange and the number
+   itself is replaced with "<20" (never the exact small count) elsewhere. */
+.builder-header .results-count.low-count {
+  background: var(--or-soft);
+}
+.results-count.low-count .results-count-num {
+  color: var(--or);
 }
 .results-count-label {
   font-size: 0.9rem;
@@ -1442,6 +1467,28 @@ select:focus-visible {
   font-size: 0.85rem;
   font-style: italic;
   color: var(--ink-faint);
+}
+
+/* Privacy-suppression state: shown instead of the table when 0 < count <
+   the suppression threshold — a small-enough cohort that individual rows
+   risk re-identifying someone. */
+.results-suppressed {
+  padding: 1.4rem 1.5rem;
+  border: 1px solid var(--or-soft);
+  border-radius: var(--radius-sm);
+  background: var(--or-soft);
+}
+.results-suppressed-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--or);
+}
+.results-suppressed-body {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
 }
 
 /* Pager row below the table. */

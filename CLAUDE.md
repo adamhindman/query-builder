@@ -118,6 +118,29 @@ shows live results — so the query does something, not just render.
   select rows. Page index is local UI state, reset to the first page on any
   query change (pager clicks re-render just the results and keep their
   page). It re-renders on every store change, alongside the summary.
+- **Privacy suppression threshold** (`SUPPRESSION_THRESHOLD = 20` in
+  `main.ts`): mirrors the backend design doc's count-threshold gate. A count
+  of exactly **0** is shown as-is (the existing "No participants match this
+  query." empty state) — knowing nobody matches isn't sensitive. But a
+  **non-zero count below the threshold** is small enough to risk
+  re-identifying someone, so:
+  - The **table is replaced** with a `.results-suppressed` message ("Too few
+    matching subjects to display" + explanation) instead of ever rendering
+    the actual rows. No pager.
+  - The **match-count badge** turns orange (`.low-count`, reusing the
+    OR/`--or` color — not `--exclude` red, which this app reserves for
+    NOT/exclusion) and shows **"<20"** rather than the real number, in both
+    places the count appears (the header badge and the static toolbar's
+    "SUBJECTS MATCHED (n)"). The exact small count is never surfaced
+    anywhere in the UI once it's below threshold — only "<20".
+- The match-count badge **pulses** (a quick CSS scale-up-then-settle,
+  `.pulse` / `@keyframes results-count-pulse`) whenever the match count
+  actually changes value — tracked via a `lastMatchCount` variable in
+  `main.ts` so it doesn't retrigger on renders that don't change the count
+  (e.g. a pager click, or editing a condition that happens to match the same
+  total). The class is removed and re-added (with a forced reflow via an
+  `offsetWidth` read in between) rather than just added, since re-adding an
+  already-present class wouldn't restart a CSS animation.
 - Like the preset selector and the schema content, the **record data is
   placeholder** — real results come from the product's data source; the
   evaluator and results UI are the reusable parts.
