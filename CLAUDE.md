@@ -24,7 +24,13 @@ The user builds a **query tree**:
   property kind has its own operator set, and two **presence operators** are
   members of every set:
   - enum: `any` (record has **at least one** selected value — OR), `all`
-    (**every** selected value — AND), `none` (**none** of them — NOT)
+    (**every** selected value — AND), `none` (**none** of them — NOT). **`all`
+    and `none` are currently hidden from the operator dropdown** — the
+    backend API design has no matching primitive for either yet (`none` only
+    exists there as NOT-wrapped-around-`any`, and `all` has no equivalent at
+    all). The model, evaluator, and summary/SQL-style rendering still support
+    both; only the UI picker is restricted (`KIND_OPS` in `ui/render.ts`), so
+    re-enabling them later is a one-line change.
   - range: `between` / `greater than` / `less than` / `at least` / `at most`
     (the last two express an open-ended range)
   - boolean: `is` (the Yes/No selection)
@@ -81,19 +87,37 @@ shows live results — so the query does something, not just render.
   **no constraint** — it matches every record — so the startup blank condition
   reads as "all N participants". Missing values fail value comparisons but are
   what `has no value` looks for.
-- The **Results panel** (below the summary) shows `X of N participants` and a
-  **paginated** table (20 rows per page, prev/next + "Page x of y", a
-  representative column per kind). Page index is local UI state, reset to the
-  first page on any query change (pager clicks re-render just the results and
-  keep their page). It re-renders on every store change, alongside the summary.
-- A **floating result card** ("fab") is pinned to the lower-right of the
-  viewport — a lightly-rounded white rectangle with a small grey
-  "MATCHING SUBJECTS" header, the live count in a large dark number,
-  "subjects match" beneath, and a blue **Download All** button. The card is
-  display-only (`pointer-events: none`) *except* its button (`pointer-events:
-  auto`), so only the button is clickable and the card never blocks clicks
-  beneath. **Download All** exports every matching subject (all properties) as
-  a `matching-subjects.csv` download.
+- The **match count** lives as a badge next to the "Query Builder" H1
+  (`space-between` in the header row) — not above the results table. It's a
+  lightly-rounded (not fully pill-shaped) chip tinted with the site's teal
+  brand color (`#39ac97`, the same one used for nav/tab highlights), showing
+  a large bold number (`.results-count-num`) next to a smaller muted label
+  (`.results-count-label`) reading "N subjects matched". The "Results"
+  heading above the table is a plain, uncounted H3 — the count doesn't
+  appear twice.
+- A small circular **"?" help button** (`.qb-help-btn`) sits right next to
+  the "Query Builder" H1 (grouped together in `.builder-title-group`, so the
+  header's `space-between` still has just two flex children — the title
+  group and the match-count badge). It opens the **info modal**
+  (`ui/modal.ts`'s `infoModal`/`infoModalRoot`, a sibling of the confirm
+  modal that reuses the same `.modal-*` CSS but has a single "Got it" button
+  instead of Cancel/Confirm) with a short bullet list covering: one AND/OR
+  per group + nesting for mixed logic, group-level NOT vs. the per-condition
+  "is none of", what a condition does, drag-to-reorder/move semantics, and
+  the "Reads as" sentence as the always-available plain-English check.
+- The **Results panel** is a **paginated** table (25 rows per page, prev/next
+  + "Page x of y", a representative column per kind) with no border/padding
+  around its container, spanning the full remaining browser width to the
+  right of the sidebar (not capped at the builder's 1600px max-width), with a
+  40px margin on all sides. Its header row is styled after
+  eliteportal.synapse.org's results table: a light-gray header band, a
+  leading (non-functional) checkbox column, a decorative sort-glyph in every
+  header cell plus a help icon on ID and a filter icon on Sex, and numeric
+  columns right-aligned with tabular figures. These header icons and
+  checkboxes are pure chrome — the table doesn't actually sort, filter, or
+  select rows. Page index is local UI state, reset to the first page on any
+  query change (pager clicks re-render just the results and keep their
+  page). It re-renders on every store change, alongside the summary.
 - Like the preset selector and the schema content, the **record data is
   placeholder** — real results come from the product's data source; the
   evaluator and results UI are the reusable parts.
@@ -117,8 +141,10 @@ The `PROPERTIES` list is **flat — real data has no property categories**, so
 the sidebar renders no grouping; any section comments in the data file are
 code organization only.
 
-- **enum** — multi-select from fixed values, with the any/all/none operator.
-  (`ordered` is inert metadata for a possible future range-style operator.)
+- **enum** — multi-select from fixed values, with the any/all/none operator
+  (only `any` is currently exposed in the UI — see the operator-set bullet
+  above). (`ordered` is inert metadata for a possible future range-style
+  operator.)
 - **boolean** — **no operator**; the value input carries the whole meaning.
 - **range** carries its own operator set (`between`/`gt`/`lt`/`gte`/`lte`);
   `gte`/`lte` express an open-ended "at least N" / "at most N" range, so
@@ -304,6 +330,13 @@ preserve them.
 
 ## Facet sidebar
 
+This section describes the **real, functional** property sidebar
+(`ui/sidebar.ts`) that sits alongside the query builder. It's a different
+thing from the **faceted-filter sidebar mockup** (`ui/facetSidebar.ts`,
+described under "Not part of the product") — that one is a non-functional
+placeholder shown in the default "browse" view, before the user enters Query
+Builder mode; this one is the always-live sidebar shown once they do.
+
 A **left sidebar** lists every **property** as a selectable row in one flat
 list (**no categories** — real data has none). Its purpose is to splay the
 properties out where they can be seen, instead of hiding them inside the
@@ -318,10 +351,16 @@ always chosen in the builder.
   blue-outlined circle (a span, not a nested button; the row itself is the
   button) with a custom dark tooltip below it ("Add a condition on X") via
   CSS `::after`, replacing any native title.
+- A small uppercase **"Select a property to add"** heading
+  (`.sidebar-list-heading`) sits above the property list — a one-line label
+  naming what clicking a row does, since nothing else in the sidebar states
+  that up front.
 - **Search input** at the top filters the rows by property label *or* value
   label (matching a value surfaces its property). The helper text under the
-  search box stays **generic** — it names no example values from the schema.
-  Matched substrings are **highlighted**
+  search box is a short, **generic** one-liner ("Click a property below to
+  add it to the query builder.") — it names no example values from the
+  schema, and describes what clicking does rather than repeating the search
+  box's own placeholder text. Matched substrings are **highlighted**
   (`<mark>`, amber) in property labels. When the match is on a **value**, that
   value appears as a clickable **amber pill** under its property — clicking it
   appends a ready-made condition (property + that value, `is any of`) to the
@@ -372,23 +411,40 @@ query's logic** (different combinator / exclude / nesting).
 
 ## Site chrome mockup (not part of the product)
 
-Two static, **non-functional** mockups in `index.html` (outside `#app`, so the
-app's re-renders never touch them) make the page resemble the host ELITE
+Three static, **non-functional** mockups in `index.html` (outside `#app`, so
+the app's re-renders never touch them) make the page resemble the host ELITE
 Portal — layout only, so the builder looks at home in its eventual page. Omit
 when rebuilding, like the preset selector.
 
 - A **fixed top nav**: the ELITE Portal logo (full SVG with wordmark), nav
   links (`#87878b`, green `#39ac97` when active/hovered; Explore active with a
   green underline), a grey download icon, and an avatar. `body` gets
-  `padding-top: var(--nav-h)` and the sticky sidebar offsets by the same, so
-  nothing hides under the nav.
+  `padding-top: var(--nav-h)` so nothing hides under the nav.
 - A full-width **Explore section header** above the app: an "Explore" title, a
   sub-tab row (Cohort Discovery active, green underline; same color rules as
   the nav), and a grey toolbar strip with a green "Hide Filters" control and
   green action icons. Its title reads "SUBJECTS MATCHED (n)" where **n is the
-  live match count** — the one non-static bit of chrome: `main.ts` updates the
-  `.toolbar-count` span (which lives in `index.html`) inside `renderResults`,
-  alongside the fab.
+  live match count** — one of two non-static bits of chrome: `main.ts` updates
+  the `.toolbar-count` span (which lives in `index.html`) inside
+  `renderResults`.
+- The toolbar's icon cluster also holds a real, interactive **"Query
+  Builder" button** (`.toolbar-qb-btn`, styled like "Hide Filters" — teal
+  text, no border) — the second non-static bit of chrome, and the one actual
+  control the static markup exposes. `main.ts` attaches its click handler and
+  flips its label to "Exit Query Builder" while active. See "Facet sidebar"
+  below for what it toggles.
+- A hidden **dev-tools menu** (`.dev-menu`, a floating card) holds the
+  preset-query loader and "Clear all" — pulled out of the main header so they
+  don't clutter the product surface. It's toggled by **⌘/Ctrl+\\** and starts
+  closed; like the preset selector itself, omit it when rebuilding.
+- A **site footer** below `#app`, matching eliteportal.synapse.org's: a teal
+  top band (brand title + "POWERED BY [mark] Sage Bionetworks" + "Contact
+  Us"/"Terms of Service" links) over a slightly darker teal bottom band
+  ("Version Number", an "Experimental Mode" label with an info glyph and a
+  static on/off toggle, and a centered legal line — org status, EIN, "Trust
+  Center", "IRS Form 990"). The Sage Bionetworks mark is a placeholder SVG
+  (no real logo asset was provided); the toggle is a styled span, not a real
+  control, matching the rest of this section's "layout only" scaffolding.
 
 ## Tech
 
@@ -457,9 +513,10 @@ when rebuilding, like the preset selector.
 
 ## Not part of the product (design scaffolding — omit when rebuilding)
 
-- **Preset selector** in the header ("Load an example…"): a design/testing aid
-  to populate the builder with queries of varying complexity. Not a product
-  feature.
+- **Preset selector** ("Load an example…") and **Clear all**: design/testing
+  aids to populate or reset the builder. Not a product feature — tucked into
+  a hidden floating **dev-tools menu** (⌘/Ctrl+\\) rather than shown in the
+  main header, so they're out of the way but still reachable while testing.
 - **Animal mock data** (Class, Habitat, Diet, …): placeholder content to
   exercise the UI. Real properties/values come from the product's data source;
   only the *schema shape* above is meaningful.
@@ -472,3 +529,18 @@ when rebuilding, like the preset selector.
   the query builder (header/tree/summary); the results panel stays visible
   either way. Omit entirely when rebuilding — it exists only to demo the
   before/after of entering Query Builder mode.
+  - **Leaving the query builder resets the query.** The facet mockup can't
+    express the query builder's full range (nested groups, OR, NOT) — there's
+    no faithful way to hand a complex tree back to a flat facet checklist. So
+    switching from Query Builder mode back to the facet view **clears the
+    query** (`defaultQuery()`) rather than leave it silently filtering results
+    behind a facet UI that doesn't reflect it. Since that's destructive, it's
+    gated behind a confirmation — a custom modal (`ui/modal.ts`, matching the
+    app's own look rather than a native `window.confirm()`) — but only when
+    the query is actually non-trivial (`usedPropertyIds(tree).size > 0`; the
+    default blank starter condition doesn't trigger it). Its copy names the
+    action the user is choosing ("Switch to the filter view?" / "Switch to
+    filter view") rather than the side effect ("Clear query") — the query
+    reset is a consequence of switching views, not the thing being confirmed.
+    Canceling the confirm leaves
+    the user in Query Builder mode, query untouched.

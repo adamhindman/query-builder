@@ -15,10 +15,12 @@ import { getProperty } from '../data/properties'
  */
 
 /** Shown as expanded sections by default, in this order. */
-const DEFAULT_FACET_IDS = ['age', 'sex', 'diagnosis', 'cohort', 'familyStudyParticipant']
+const DEFAULT_FACET_IDS = ['age', 'sex', 'diagnosis']
 
 /** Extra properties listed only as inactive chips, to round out the mockup. */
 const CHIP_ONLY_IDS = [
+  'cohort',
+  'familyStudyParticipant',
   'race',
   'ethnicGroupCode',
   'dataType',
@@ -59,7 +61,12 @@ function minusGlyph(): HTMLElement {
   return span
 }
 
-/** One expanded facet section: header, an "All" row, then a row per value. */
+/** Value rows past this count start collapsed behind "Show all (N)". */
+const VISIBLE_VALUE_COUNT = 5
+
+/** One expanded facet section: header, an "All" row, then a row per value —
+    only the first few values show by default, matching the reference's
+    "Show all (N)" collapse for long value lists. */
 function facetSection(propertyId: string, seed: number): HTMLElement | null {
   const property = getProperty(propertyId)
   if (!property) return null
@@ -87,6 +94,29 @@ function facetSection(propertyId: string, seed: number): HTMLElement | null {
           )
         : []
 
+  const visibleRows = rows.slice(0, VISIBLE_VALUE_COUNT)
+  const hiddenRows = rows.slice(VISIBLE_VALUE_COUNT)
+
+  let showAllBtn: HTMLElement | null = null
+  if (hiddenRows.length > 0) {
+    const hiddenWrap = el('div', { class: 'facet-mock-hidden-rows', hidden: true }, ...hiddenRows)
+    let expanded = false
+    showAllBtn = el(
+      'button',
+      {
+        type: 'button',
+        class: 'facet-mock-show-all',
+        onclick: () => {
+          expanded = !expanded
+          hiddenWrap.hidden = !expanded
+          showAllBtn!.textContent = expanded ? 'Show less' : `Show all (${rows.length})`
+        },
+      },
+      `Show all (${rows.length})`,
+    )
+    visibleRows.push(hiddenWrap)
+  }
+
   return el(
     'section',
     { class: 'facet-mock-section' },
@@ -103,7 +133,8 @@ function facetSection(propertyId: string, seed: number): HTMLElement | null {
       el('span', { class: 'facet-mock-label' }, 'All'),
       searchGlyph(),
     ),
-    ...rows,
+    ...visibleRows,
+    showAllBtn,
   )
 }
 

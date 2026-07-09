@@ -1,11 +1,12 @@
 import './style.css'
 import { el, clear } from './dom'
 import { QueryStore } from './query/store'
-import { defaultQuery } from './query/model'
+import { defaultQuery, usedPropertyIds } from './query/model'
 import { PRESETS, getPreset } from './query/presets'
 import { renderTree, alignBrackets } from './ui/render'
 import { renderSidebar } from './ui/sidebar'
 import { renderFacetSidebar } from './ui/facetSidebar'
+import { confirmModal, modalRoot, infoModal, infoModalRoot } from './ui/modal'
 import { summarize } from './query/summary'
 import { getProperty } from './data/properties'
 import { RECORDS, type RecordValue } from './data/records'
@@ -32,7 +33,7 @@ const toolbarCount = document.querySelector<HTMLElement>('.toolbar-count')
 
 // Columns spanning the kinds — id plus a representative property of each.
 const RESULT_COLUMNS = ['age', 'sex', 'diagnosis', 'cohort', 'dataType', 'visitCode', 'fileName']
-const PAGE_SIZE = 20
+const PAGE_SIZE = 25
 
 // Decorative header icons (sort/help/filter) — mockup chrome like the nav;
 // the table doesn't actually sort or filter yet.
@@ -132,13 +133,36 @@ document.addEventListener('keydown', (e) => {
 // The header/tree/summary make up the query builder proper; the results
 // panel below is a separate feature and stays visible in both the default
 // "browse" view and Query Builder mode.
+const qbHelpBtn = el(
+  'button',
+  {
+    type: 'button',
+    class: 'qb-help-btn',
+    'aria-label': 'How the query builder works',
+    onclick: () =>
+      infoModal(
+        'How the query builder works',
+        el(
+          'ul',
+          { class: 'modal-list' },
+          el('li', {}, el('strong', {}, 'Groups'), ' combine their items with one AND or OR — mixed logic is expressed by nesting a group, not by mixing operators in one list.'),
+          el('li', {}, 'Add ', el('strong', {}, 'NOT'), ' to a group to exclude everything inside it; for a single condition, use the "is none of" operator instead.'),
+          el('li', {}, 'A ', el('strong', {}, 'condition'), ' filters one property — click its property, operator, or values to change them.'),
+          el('li', {}, el('strong', {}, 'Drag'), ' rows to reorder them or move them into a different group; moving into a different group changes the logic.'),
+          el('li', {}, 'The ', el('strong', {}, '"Reads as"'), ' sentence below the tree always shows the whole query in plain English.'),
+        ),
+      ),
+  },
+  '?',
+)
+
 const builderTop = el(
   'div',
   {},
   el(
     'header',
     { class: 'builder-header' },
-    el('h1', {}, 'Query Builder'),
+    el('div', { class: 'builder-title-group' }, el('h1', {}, 'Query Builder'), qbHelpBtn),
     resultsCount,
   ),
   treeMount,
@@ -195,7 +219,22 @@ function applyMode(): void {
   if (mode === 'builder') alignBrackets(treeMount)
 }
 
-qbToggleBtn?.addEventListener('click', () => {
+// Leaving the query builder (back to the facet-filter view) can't preserve
+// the query: the facet mockup has no way to express what the builder can
+// (nested groups, OR, NOT). Rather than let the query silently keep filtering
+// results behind a facet UI that doesn't reflect it, switching back resets
+// the query — but only after the user confirms, since it's a destructive
+// action if they've actually built something.
+qbToggleBtn?.addEventListener('click', async () => {
+  if (mode === 'builder' && usedPropertyIds(store.get()).size > 0) {
+    const ok = await confirmModal({
+      title: 'Switch to the filter view?',
+      message: 'This will clear your current query and reset the results.',
+      confirmLabel: 'Switch to filter view',
+    })
+    if (!ok) return
+    store.update(() => defaultQuery())
+  }
   mode = mode === 'browse' ? 'builder' : 'browse'
   applyMode()
 })
@@ -203,6 +242,8 @@ qbToggleBtn?.addEventListener('click', () => {
 app.replaceChildren(
   el('div', { class: 'app-layout' }, facetSidebar, querySidebar, shell),
   devMenu,
+  modalRoot(),
+  infoModalRoot(),
 )
 applyMode()
 

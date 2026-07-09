@@ -204,6 +204,11 @@ export function renderSidebar(store: QueryStore): HTMLElement {
   renderList('')
   applyUsage()
 
+const searchGlyph = el('span', { class: 'search-icon', 'aria-hidden': 'true' })
+  searchGlyph.innerHTML =
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>'
+
   const input = el('input', {
     type: 'search',
     class: 'search-input',
@@ -245,13 +250,10 @@ export function renderSidebar(store: QueryStore): HTMLElement {
     el(
       'div',
       { class: 'sidebar-top' },
-      el('div', { class: 'search-wrap' }, input, clearBtn),
-      el(
-        'p',
-        { class: 'sidebar-hint' },
-        'Search property names or values. Click a property to start a condition, then refine it in the builder.',
-      ),
+      el('div', { class: 'search-wrap' }, searchGlyph, input, clearBtn),
+      el('p', { class: 'sidebar-hint' }, 'Click a property below to add it to the query builder.'),
     ),
+    el('h3', { class: 'sidebar-list-heading' }, 'Select a property to add'),
     list,
   )
 }
