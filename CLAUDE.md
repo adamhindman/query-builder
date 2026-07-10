@@ -148,21 +148,19 @@ shows live results, so the query does something, not just render.
   nothing further to round). The static toolbar's "SUBJECTS MATCHED (n)"
   shows the same rounded/approximate value, so the two counts on screen
   never contradict each other.
-- **Sensitive fields (not yet implemented):** `age`, `race`, `sex`,
-  `ethnicGroupCode`, `diagnosis`, `cohort`, `countryCode`, and
-  `apoeGenotype` are considered sensitive quasi-identifiers. Two more were
-  called out by name but don't exist as distinct properties in the current
-  schema — "Age Bin" (the existing `age` property is already bin-valued, so
-  this may just *be* `age`) and "Diagnosis Macro" (a coarser grouping of
-  `diagnosis` that isn't modeled yet). **If this app ever shows per-value
-  result *counts*** for these fields (e.g. facet statistics, a value-level
-  breakdown — it doesn't today; only the single total match count exists,
-  gated by the suppression threshold above), those counts must be rounded
-  or otherwise post-processed before display, the same way the backend
-  design doc's `FacetPostProcessor` framework (ROUNDING / NOISE, §4.5–4.7)
-  protects facet statistics against arithmetic/differential attacks. This
-  is a placeholder note for that future work — nothing in the current UI
-  exposes per-value counts, so there's nothing to round yet.
+- **Sensitive fields:** `age`, `race`, `sex`, `ethnicGroupCode`, `diagnosis`,
+  `cohort`, `countryCode`, and `apoeGenotype` are considered sensitive
+  quasi-identifiers. Two more were called out by name but don't exist as
+  distinct properties in the current schema — "Age Bin" (the existing `age`
+  property is already bin-valued, so this may just *be* `age`) and
+  "Diagnosis Macro" (a coarser grouping of `diagnosis` that isn't modeled
+  yet). Per-value result counts for these fields (and any other enum/boolean
+  property) **are** now shown, via the Characterizations bar charts below —
+  and are rounded the same way the backend design doc's `FacetPostProcessor`
+  framework (ROUNDING / NOISE, §4.5–4.7) protects facet statistics, using
+  this app's own `query/rounding.ts` rather than a per-field allowlist (every
+  characterizable property is rounded, sensitive or not — simpler, and
+  no less protective).
 - The match-count badge **pulses** (a quick CSS scale-up-then-settle,
   `.pulse` / `@keyframes results-count-pulse`) whenever the match count
   actually changes value — tracked via a `lastMatchCount` variable in
@@ -184,15 +182,19 @@ input UI:
 ```ts
 type PropertyValue = { id: string; label: string }
 type Property =
-  | { id; label; kind: 'enum'; ordered: boolean; values: PropertyValue[] }
-  | { id; label; kind: 'boolean' }                       // Yes/No
-  | { id; label; kind: 'range'; unit?: string }          // min/max numbers
-  | { id; label; kind: 'text' }                          // free-text (LIKE)
+  | { id; label; category: string; kind: 'enum'; ordered: boolean; values: PropertyValue[] }
+  | { id; label; category: string; kind: 'boolean' }     // Yes/No
+  | { id; label; category: string; kind: 'range'; unit?: string } // min/max numbers
+  | { id; label; category: string; kind: 'text' }        // free-text (LIKE)
 ```
 
-The `PROPERTIES` list is **flat — real data has no property categories**, so
-the sidebar renders no grouping; any section comments in the data file are
-code organization only.
+Every property carries a **`category`** (Demographic & Clinical, Study &
+Cohort Design, Data Modality, Assessment Availability, Genetic
+Stratification, Comorbidity) that groups the sidebar. `PROPERTIES`'s own
+array order matches those groupings; the section comments in the data file
+mark the same boundaries the `category` field encodes, kept for
+readability. (An earlier version of this document said properties were
+flat with no categories — that was wrong; ELITE-47 does have them.)
 
 - **enum** — multi-select from fixed values, with the any/all/none operator
   (only `any` is currently exposed in the UI — see the operator-set bullet
@@ -391,8 +393,10 @@ placeholder shown in the "browse" view, reached via the "Query Builder"
 toolbar button's toggle (the app **opens in Query Builder mode** by
 default); this one is the always-live sidebar shown while in that mode.
 
-A **left sidebar** lists every **property** as a selectable row in one flat
-list (**no categories** — real data has none). Its purpose is to splay the
+A **left sidebar** lists every **property** as a selectable row, grouped
+under its **`category`** heading (Demographic & Clinical, Study & Cohort
+Design, Data Modality, Assessment Availability, Genetic Stratification,
+Comorbidity — see `data/properties.ts`). Its purpose is to splay the
 properties out where they can be seen, instead of hiding them inside the
 builder's dropdown selector — it is **not** for selecting values; values are
 always chosen in the builder.
@@ -405,6 +409,15 @@ always chosen in the builder.
   blue-outlined circle (a span, not a nested button; the row itself is the
   button) with a custom dark tooltip below it ("Add a condition on X") via
   CSS `::after`, replacing any native title.
+- **Category headings** (`.sidebar-category`, e.g. "DEMOGRAPHIC & CLINICAL")
+  sit above each group's rows — small, uppercase, quieter than the "Select a
+  property to add" heading below so that instruction still reads as the
+  primary label. Rendered by walking the filtered/searched rows (which stay
+  in `PROPERTIES`'s own order, itself already grouped by category) and
+  inserting a heading whenever a row's `category` differs from the previous
+  row's — so headings appear only for categories that still have at least
+  one matching row once a search narrows the list, and drop out entirely
+  otherwise.
 - A small uppercase **"Select a property to add"** heading
   (`.sidebar-list-heading`) sits above the property list — a one-line label
   naming what clicking a row does, since nothing else in the sidebar states
@@ -462,6 +475,89 @@ Semantics to keep in mind: **reordering within a group is purely cosmetic**
 query's logic** (different combinator / exclude / nesting).
 
 ---
+
+## Characterizations
+
+A section (`ui/characterizations.ts`) between the query builder and the
+Results panel: bar charts breaking the **current query's matching cohort**
+down by a variable the user picks — one bar per option of that variable
+(e.g. a Sex chart with a Male bar and a Female bar). Empty by default; users
+add one chart at a time via a plain **`<select>` dropdown** ("Add a
+characterization…") listing every not-yet-added characterizable property,
+rebuilt (`picker.refresh`) after every add/remove so a property already
+charted drops out of the list. Only **enum** and **boolean** properties are
+offered — they're the only kinds with a fixed, discrete set of "options" a
+bar can represent; range/text properties have no such options and are left
+out of the picker entirely. Each added chart gets a small "✕" to remove it;
+charts re-render (via `store.subscribe`) whenever the query changes, since
+they characterize the *current* result set.
+
+- **Auto-added once, on the first characterizable property picked.** The
+  moment any condition gets a property assigned (typically the tree's
+  blank starter condition — its first-ever pick) and no characterization
+  has been added yet, a chart for that property appears automatically
+  (`maybeAutoAdd` in `renderCharacterizations`), so the section demonstrates
+  itself instead of sitting empty until someone finds the dropdown. Gated
+  by a one-time `autoAdded` flag — it fires exactly once per page load and
+  does **not** re-fire if the user removes every chart afterward (that
+  would fight a deliberate "clear this" action). If the first property
+  picked isn't characterizable (a range/text kind), nothing is added until
+  a characterizable one appears.
+- **No chart ever shows an exact count — this is the entire point of the
+  feature.** There's no per-bar label at all, only the X axis's own scale
+  (see below) — a design choice to keep the *only* place a number appears
+  as coarse and glanceable as possible, rather than also printing a precise-
+  looking figure next to every bar. Each bar's length goes through the same
+  rounding rules as the main match-count badge (`query/rounding.ts`,
+  `approximateCountValue`): a count of 0 stays 0; a nonzero count under the
+  suppression threshold clamps to the threshold; everything else rounds to
+  the nearest 10. Because the *plotted* numbers are already rounded,
+  Plotly's own auto-generated axis ticks never land on an exact value
+  either — there's no separate "make the axis coarser" step, the privacy
+  rounding happens before the numbers ever reach the chart.
+- **Charts are horizontal bars** (`orientation: 'h'`) so long option labels
+  (e.g. diagnosis names) stay legible without rotating text: **Y axis** =
+  one bar per option, bars sized with a strictly linear px-per-option
+  height (no min/max clamp) so bar *thickness* stays visually consistent
+  across charts regardless of how many options each one has — a floor for
+  small option counts (e.g. a 2-option boolean) would make its bars
+  noticeably thicker than a chart with more options. Bar corners are
+  slightly rounded (`marker.cornerradius`), the Y-axis's own line is
+  hidden, and there's extra breathing room between the Y-axis tick labels
+  and the bars (`yaxis.ticklabelstandoff`). **X axis** = the rounded count's
+  own scale, titled "Approximate count" (with its own `standoff` so the
+  title doesn't crowd the tick labels) — the only place a count is visible
+  on the chart; the X axis's line and zero-line are both hidden too (no
+  dark line at x=0). The property's own label is the Plotly chart title,
+  left-aligned and bold (`<b>` in the title text, `x: 0, xanchor: 'left'`).
+- Each chart's header row has a **"Why can't I see the counts?" link** next
+  to its "✕" remove button — a **click**-toggled (not hover) tooltip
+  (`.char-why-tooltip`) explaining the rounding, since the explanation is a
+  full sentence that's easy to lose by moving the mouse off a hover target.
+  A document-level click listener closes any open tooltip when something
+  else is clicked; the toggle button itself stops propagation so its own
+  click doesn't immediately re-close it.
+- **Rendering:** on every store change (or add/remove), the whole
+  `.char-charts` region is cleared and rebuilt from the current
+  `selectedIds` list, matching the rest of the app's full-re-render
+  convention — no attempt to diff/update individual Plotly traces in place.
+- **Plotly is lazy-loaded.** `plotly.js-basic-dist-min` (the trimmed
+  bar/scatter/pie trace bundle, not the ~4MB+ full library) is still over
+  1MB even minified, so it's fetched via a dynamic `import()`
+  (`loadPlotly()`, cached in a module-level promise after the first call)
+  the first time a chart is actually drawn — not on initial page load,
+  since the section starts empty. `drawChart` is therefore async; it checks
+  `plotEl.isConnected` before calling `Plotly.newPlot` in case the store (or
+  the selected-variables list) changed again while the import was still in
+  flight and this particular card was already discarded by a newer render.
+  `displayModeBar: false` keeps Plotly's own toolbar out of what's meant to
+  read as a simple report chart, not an interactive analysis tool;
+  `responsive: true` handles resizing without extra code.
+- **Types:** `plotly.js-basic-dist-min` ships no types of its own — `src/
+  plotly-basic.d.ts` declares it as a module with a `default` export typed
+  via `@types/plotly.js` (a plain named-exports `.d.ts`, so the shim wraps
+  it as a namespace-typed default — matching how Vite/Rollup's CJS interop
+  actually exposes a UMD bundle like this one on dynamic `import()`).
 
 ## Site chrome mockup (not part of the product)
 

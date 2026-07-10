@@ -13,13 +13,14 @@ import { startPropertyDrag, endPropertyDrag } from './dnd'
 import { filterProperties, highlight } from './propertySearch'
 
 /**
- * Left sidebar: every property as a selectable row in one flat, filterable
- * list (real data has no property categories) — the properties splayed out
- * rather than hidden in the builder's dropdown. Clicking a row appends a
- * condition for that property (with no value chosen yet) to the end of the
- * root group; the value is then picked in the builder, and the condition
- * dragged into a nested group when needed. Rows can also be dragged straight
- * onto a drop zone in the tree.
+ * Left sidebar: every property as a selectable row, grouped under its
+ * `category` heading (Demographic & Clinical, Study & Cohort Design, …;
+ * see `data/properties.ts`) — the properties splayed out rather than hidden
+ * in the builder's dropdown. Clicking a row appends a condition for that
+ * property (with no value chosen yet) to the end of the root group; the
+ * value is then picked in the builder, and the condition dragged into a
+ * nested group when needed. Rows can also be dragged straight onto a drop
+ * zone in the tree.
  *
  * Values are not listed — with one exception: when the search text matches a
  * value's label, that value shows as a clickable pill under its property
@@ -58,7 +59,15 @@ export function renderSidebar(store: QueryStore): HTMLElement {
       list.appendChild(el('p', { class: 'sidebar-empty' }, `No matches for “${query.trim()}”.`))
       return
     }
+    // Filtered facets stay in PROPERTIES order, which is already grouped by
+    // category — so a category heading just goes in front of the first row
+    // whose category differs from the previous row's.
+    let lastCategory: string | null = null
     for (const { property, valueHits } of facets) {
+      if (property.category !== lastCategory) {
+        lastCategory = property.category
+        list.appendChild(el('h4', { class: 'sidebar-category' }, property.category))
+      }
       // Always-visible when in use: a checkmark at the row's right edge.
       const check = el('span', { class: 'facet-check', 'aria-hidden': 'true' })
       check.innerHTML =

@@ -332,12 +332,31 @@ body {
 }
 
 .sidebar-list-heading {
-  margin: 0.9rem 0.5rem 0.2rem;
+  margin: 0.9rem 1rem 0.2rem;
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--ink-faint);
+}
+
+/* Category group headings inside the property list — a step quieter than
+   .sidebar-list-heading so the "Select a property to add" instruction still
+   reads as the primary label. */
+.sidebar-category {
+  margin: 0.9rem 0.5rem 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+}
+.sidebar-category:first-child {
+  margin-top: 0.2rem;
+  padding-top: 0;
+  border-top: none;
 }
 
 /* Narrow side padding — the rows' own padding supplies the text inset, so
@@ -1468,6 +1487,114 @@ select:focus-visible {
 .summary-text .op-not {
   color: var(--exclude);
   font-weight: 700;
+}
+
+/* ---------- Characterizations ---------- */
+
+.characterizations {
+  margin: 16px 24px 0;
+  background: var(--surface);
+}
+.char-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+.char-head-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.char-picker-select {
+  font: inherit;
+  font-size: 0.82rem;
+  height: 30px;
+  padding: 0 0.5rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--surface);
+}
+.characterizations h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.char-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--ink-faint);
+}
+.char-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.char-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+}
+.char-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+.char-remove {
+  border: none;
+  background: none;
+  color: var(--ink-faint);
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 0.35rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.char-remove:hover {
+  color: var(--ink-soft);
+  background: var(--gray-100);
+}
+.char-plot {
+  width: 100%;
+}
+
+/* "Why can't I see the counts?" — a click-toggled (not hover) tooltip, since
+   the explanation is a full sentence that's easy to lose by moving the
+   mouse off a hover target. */
+.char-why-wrap {
+  position: relative;
+}
+.char-why {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.76rem;
+  color: var(--ink-faint);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.char-why:hover {
+  color: var(--ink-soft);
+}
+.char-why-tooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 10;
+  width: max-content;
+  max-width: 260px;
+  background: var(--gray-950);
+  color: #fff;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
 }
 
 /* ---------- Results ---------- */

@@ -55,6 +55,14 @@ all placeholder scaffolding to make the prototype demonstrable — see
 Most recent first; not exhaustive back to project start, but covers ongoing
 work.
 
+**Characterizations**
+- New section between the query builder and the results table: bar charts
+  (Plotly, lazy-loaded) showing the current query's matching cohort broken
+  down by a user-picked variable — one bar per option. Empty by default;
+  add one at a time via a searchable dropdown (enum/boolean properties
+  only). No chart ever shows an exact count — every bar is rounded the same
+  way the match-count badge is (shared `query/rounding.ts`).
+
 **Large-enum handling**
 - Enums with more than 50 values now render their value picker as a
   scrollable, filterable "pill tray" instead of an inline pill list, so a

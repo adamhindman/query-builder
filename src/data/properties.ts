@@ -22,14 +22,18 @@ const DUMMY_STUDY_CODES: PropertyValue[] = Array.from({ length: 103 }, (_, i) =>
  * they were supplied separately and filled in below. Acronym casing in labels
  * has been tidied (e.g. "Has Cvd" → "Has CVD").
  *
- * The list is flat — real data has no property categories. The section
- * comments below are code organization only; nothing in the UI reads them.
+ * Each property carries a `category` (Demographic & Clinical, Study & Cohort
+ * Design, Data Modality, Assessment Availability, Genetic Stratification,
+ * Comorbidity) that groups the sidebar (`ui/sidebar.ts`). The array's own
+ * order still matches those groupings — the section comments below mark the
+ * same boundaries the `category` field encodes, kept for readability.
  */
 export const PROPERTIES: Property[] = [
   // ── Demographic & Clinical ──────────────────────────────────────────
   {
     id: 'age',
     label: 'Age',
+    category: 'Demographic & Clinical',
     kind: 'enum',
     ordered: true,
     values: [
@@ -44,6 +48,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'sex',
     label: 'Sex',
+    category: 'Demographic & Clinical',
     kind: 'enum',
     ordered: false,
     values: [
@@ -55,6 +60,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'diagnosis',
     label: 'Diagnosis',
+    category: 'Demographic & Clinical',
     kind: 'enum',
     ordered: false,
     values: [
@@ -78,11 +84,13 @@ export const PROPERTIES: Property[] = [
   {
     id: 'diagnosisStatus',
     label: 'Diagnosis Status',
+    category: 'Demographic & Clinical',
     kind: 'boolean',
   },
   {
     id: 'race',
     label: 'Race',
+    category: 'Demographic & Clinical',
     kind: 'enum',
     ordered: false,
     values: [
@@ -100,11 +108,13 @@ export const PROPERTIES: Property[] = [
   {
     id: 'ethnicity',
     label: 'Ethnicity',
+    category: 'Demographic & Clinical',
     kind: 'boolean',
   },
   {
     id: 'ethnicGroupCode',
     label: 'Ethnic Group Code',
+    category: 'Demographic & Clinical',
     kind: 'enum',
     ordered: false,
     values: [
@@ -120,11 +130,13 @@ export const PROPERTIES: Property[] = [
   {
     id: 'mortalityStatus',
     label: 'Mortality Status',
+    category: 'Demographic & Clinical',
     kind: 'boolean',
   },
   {
     id: 'yearsOfEducation',
     label: 'Years of Education',
+    category: 'Demographic & Clinical',
     kind: 'boolean',
   },
 
@@ -132,6 +144,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'cohort',
     label: 'Cohort',
+    category: 'Study & Cohort Design',
     kind: 'enum',
     ordered: false,
     values: [
@@ -146,6 +159,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'studyCode',
     label: 'Study Code',
+    category: 'Study & Cohort Design',
     kind: 'enum',
     ordered: false,
     values: [
@@ -162,6 +176,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'countryCode',
     label: 'Country Code',
+    category: 'Study & Cohort Design',
     kind: 'enum',
     ordered: false,
     values: [
@@ -172,21 +187,25 @@ export const PROPERTIES: Property[] = [
   {
     id: 'fieldCenterCode',
     label: 'Field Center Code',
+    category: 'Study & Cohort Design',
     kind: 'range',
   },
   {
     id: 'visitCode',
     label: 'Visit Code',
+    category: 'Study & Cohort Design',
     kind: 'range',
   },
   {
     id: 'familyStudyParticipant',
     label: 'Family Study Participant',
+    category: 'Study & Cohort Design',
     kind: 'boolean',
   },
   {
     id: 'hasMZTwinData',
     label: 'Has MZ Twin Data',
+    category: 'Study & Cohort Design',
     kind: 'boolean',
   },
 
@@ -194,6 +213,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'dataType',
     label: 'Data Type',
+    category: 'Data Modality',
     kind: 'enum',
     ordered: false,
     values: [
@@ -207,6 +227,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'assayType',
     label: 'Assay Type',
+    category: 'Data Modality',
     kind: 'enum',
     ordered: false,
     values: [
@@ -222,6 +243,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'fileFormat',
     label: 'File Format',
+    category: 'Data Modality',
     kind: 'enum',
     ordered: false,
     values: [
@@ -237,6 +259,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'isMultiSpecimen',
     label: 'Is Multi-Specimen',
+    category: 'Data Modality',
     kind: 'boolean',
   },
   // Placeholder: not in the ELITE-47 spec — exists to exercise the text
@@ -245,6 +268,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'fileName',
     label: 'File Name',
+    category: 'Data Modality',
     kind: 'text',
   },
   // Placeholder: not in the ELITE-47 spec — mirrors the "File Size Bytes"
@@ -252,6 +276,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'fileSizeBytes',
     label: 'File Size (Bytes)',
+    category: 'Data Modality',
     kind: 'range',
   },
 
@@ -259,21 +284,25 @@ export const PROPERTIES: Property[] = [
   {
     id: 'hasBiomarkerData',
     label: 'Has Biomarker Data',
+    category: 'Assessment Availability',
     kind: 'boolean',
   },
   {
     id: 'hasFunctionalAssessment',
     label: 'Has Functional Assessment',
+    category: 'Assessment Availability',
     kind: 'boolean',
   },
   {
     id: 'hasAnthropometrics',
     label: 'Has Anthropometrics',
+    category: 'Assessment Availability',
     kind: 'boolean',
   },
   {
     id: 'hasCognitiveAssessment',
     label: 'Has Cognitive Assessment',
+    category: 'Assessment Availability',
     kind: 'enum',
     ordered: false,
     values: [
@@ -292,6 +321,7 @@ export const PROPERTIES: Property[] = [
   {
     id: 'apoeGenotype',
     label: 'APOE Genotype',
+    category: 'Genetic Stratification',
     kind: 'enum',
     ordered: true,
     values: [
@@ -305,26 +335,31 @@ export const PROPERTIES: Property[] = [
   },
 
   // ── Comorbidity ─────────────────────────────────────────────────────
-  { id: 'hasCVD', label: 'Has CVD', kind: 'boolean' },
-  { id: 'hasDementia', label: 'Has Dementia', kind: 'boolean' },
-  { id: 'hasDiabetes', label: 'Has Diabetes', kind: 'boolean' },
-  { id: 'hasParkinsons', label: "Has Parkinson's", kind: 'boolean' },
-  { id: 'hasPeripheralArteryDisease', label: 'Has Peripheral Artery Disease', kind: 'boolean' },
-  { id: 'hasAtrialFibrillation', label: 'Has Atrial Fibrillation', kind: 'boolean' },
-  { id: 'hasAnxiety', label: 'Has Anxiety', kind: 'boolean' },
-  { id: 'hasArthritis', label: 'Has Arthritis', kind: 'boolean' },
-  { id: 'hasAsthma', label: 'Has Asthma', kind: 'boolean' },
-  { id: 'hasCABG', label: 'Has CABG', kind: 'boolean' },
-  { id: 'hasTIA', label: 'Has TIA', kind: 'boolean' },
-  { id: 'hasCancer', label: 'Has Cancer', kind: 'boolean' },
-  { id: 'hasDVT', label: 'Has DVT', kind: 'boolean' },
-  { id: 'hasCHF', label: 'Has CHF', kind: 'boolean' },
-  { id: 'hasDepression', label: 'Has Depression', kind: 'boolean' },
-  { id: 'hasCOPD', label: 'Has COPD', kind: 'boolean' },
-  { id: 'hasGlaucoma', label: 'Has Glaucoma', kind: 'boolean' },
-  { id: 'hasMI', label: 'Has MI', kind: 'boolean' },
-  { id: 'hasOsteoporosis', label: 'Has Osteoporosis', kind: 'boolean' },
-  { id: 'hasStroke', label: 'Has Stroke', kind: 'boolean' },
+  { id: 'hasCVD', label: 'Has CVD', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasDementia', label: 'Has Dementia', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasDiabetes', label: 'Has Diabetes', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasParkinsons', label: "Has Parkinson's", category: 'Comorbidity', kind: 'boolean' },
+  {
+    id: 'hasPeripheralArteryDisease',
+    label: 'Has Peripheral Artery Disease',
+    category: 'Comorbidity',
+    kind: 'boolean',
+  },
+  { id: 'hasAtrialFibrillation', label: 'Has Atrial Fibrillation', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasAnxiety', label: 'Has Anxiety', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasArthritis', label: 'Has Arthritis', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasAsthma', label: 'Has Asthma', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasCABG', label: 'Has CABG', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasTIA', label: 'Has TIA', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasCancer', label: 'Has Cancer', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasDVT', label: 'Has DVT', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasCHF', label: 'Has CHF', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasDepression', label: 'Has Depression', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasCOPD', label: 'Has COPD', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasGlaucoma', label: 'Has Glaucoma', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasMI', label: 'Has MI', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasOsteoporosis', label: 'Has Osteoporosis', category: 'Comorbidity', kind: 'boolean' },
+  { id: 'hasStroke', label: 'Has Stroke', category: 'Comorbidity', kind: 'boolean' },
 ]
 
 /** Look up a property by id. Returns `undefined` if unknown. */

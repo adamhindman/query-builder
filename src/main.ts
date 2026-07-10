@@ -11,6 +11,8 @@ import { summarize } from './query/summary'
 import { getProperty } from './data/properties'
 import { RECORDS, type RecordValue } from './data/records'
 import { filterRecords } from './query/evaluate'
+import { SUPPRESSION_THRESHOLD, isBelowThreshold, approximateCount } from './query/rounding'
+import { renderCharacterizations } from './ui/characterizations'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -75,13 +77,6 @@ const RESULT_COLUMNS = [
   'studyCode',
 ]
 const PAGE_SIZE = 25
-
-// Privacy suppression threshold: a cohort this small risks re-identifying
-// individuals, so row-level results are withheld whenever 0 < count <
-// threshold (a count of exactly 0 is fine — it just means nobody matches,
-// nothing to protect). Mirrors the "count threshold gate" in the Cohort
-// Builder 2.0 backend design doc (SUPPRESSION_THRESHOLD, default 20).
-const SUPPRESSION_THRESHOLD = 20
 
 // Decorative header icons (sort/help/filter) — mockup chrome like the nav;
 // the table doesn't actually sort or filter yet.
@@ -235,15 +230,17 @@ const builderTop = el(
   ),
 )
 
-// The results panel spans the full remaining browser width (unconstrained by
-// the builder's centered max-width), so it lives outside `.builder` in its
-// own flex column alongside it.
+// The results panel (and characterizations, below) span the full remaining
+// browser width (unconstrained by the builder's centered max-width), so
+// they live outside `.builder` in its own flex column alongside it.
 const builderMain = el('main', { class: 'builder' }, builderTop)
+const characterizations = renderCharacterizations(store)
 
 const shell = el(
   'div',
   { class: 'content-col' },
   builderMain,
+  characterizations,
   el(
     'section',
     { class: 'results' },
@@ -271,6 +268,7 @@ function applyMode(): void {
   facetSidebar.hidden = mode !== 'browse'
   querySidebar.hidden = mode !== 'builder'
   builderMain.hidden = mode !== 'builder'
+  characterizations.hidden = mode !== 'builder'
   qbToggleBtn?.classList.toggle('active', mode === 'builder')
   if (qbToggleLabel) qbToggleLabel.textContent = mode === 'builder' ? 'Exit Query Builder' : 'Query Builder'
   // Brackets are measured via getBoundingClientRect, which returns all-zero
@@ -347,14 +345,9 @@ function renderResults(): void {
   // threshold, the count itself is never exact either — it's rounded to the
   // nearest 10 and marked "≈", with a disclosure link explaining why
   // (placeholder methodology for now).
-  const belowThreshold = matches.length > 0 && matches.length < SUPPRESSION_THRESHOLD
+  const belowThreshold = isBelowThreshold(matches.length)
   const isRounded = !belowThreshold && matches.length > 0
-  const roundedCount = Math.round(matches.length / 10) * 10
-  const displayCount = belowThreshold
-    ? `<${SUPPRESSION_THRESHOLD}`
-    : isRounded
-      ? `≈${roundedCount.toLocaleString()}`
-      : matches.length.toLocaleString() // exact 0 — not sensitive, shown as-is
+  const displayCount = approximateCount(matches.length)
   resultsCountNum.textContent = displayCount
   resultsCountLabel.textContent = 'matches'
   resultsCount.classList.toggle('low-count', belowThreshold)

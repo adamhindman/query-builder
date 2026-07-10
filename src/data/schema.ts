@@ -23,6 +23,8 @@ type PropertyBase = {
   id: string
   /** Human-facing label shown in the property dropdown. */
   label: string
+  /** Sidebar grouping label (e.g. "Demographic & Clinical"). */
+  category: string
 }
 
 export type EnumProperty = PropertyBase & {
