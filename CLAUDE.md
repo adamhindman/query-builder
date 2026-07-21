@@ -711,7 +711,17 @@ when rebuilding, like the preset selector.
   text, no border) — the second non-static bit of chrome, and the one actual
   control the static markup exposes. `main.ts` attaches its click handler and
   flips its label to "Exit Query Builder" while active. See "Facet sidebar"
-  below for what it toggles.
+  below for what it toggles. **Currently hidden** (a plain `hidden` attribute
+  in `index.html`, since the app now always opens in and stays in Query
+  Builder mode by default — see below) — the element, its click handler,
+  and the browse/facet-mockup mode it toggles to are all still fully intact
+  under the hood; only its visibility was turned off. `.toolbar-qb-btn` needs
+  its own explicit `.toolbar-qb-btn[hidden] { display: none }` override for
+  the same reason `.sidebar[hidden]` does (below) — its own
+  `display: inline-flex` rule ties the UA `[hidden]` rule's specificity, and
+  author styles win that tie, so without the override the button silently
+  stayed visible despite the attribute. Remove the attribute
+  to bring it back.
 - A hidden **dev-tools menu** (`.dev-menu`, a floating card) holds the
   preset-query loader and "Clear all" — pulled out of the main header so they
   don't clutter the product surface. It's toggled by **⌘/Ctrl+\\** and starts

@@ -281,6 +281,13 @@ body {
 .toolbar-qb-btn.active {
   color: var(--ink);
 }
+/* `display: inline-flex` above ties with the UA `[hidden] { display: none }`
+   rule at equal specificity, so author styles win and silently un-hide the
+   button — same gotcha `.sidebar[hidden]` already has an explicit override
+   for. */
+.toolbar-qb-btn[hidden] {
+  display: none;
+}
 
 /* ---------- Facet sidebar ---------- */
 
