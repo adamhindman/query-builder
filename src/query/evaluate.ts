@@ -93,6 +93,23 @@ function matchesCondition(record: ParticipantRecord, cond: Condition): boolean {
           return hay.includes(needle)
       }
     }
+    case 'date': {
+      // ISO `YYYY-MM-DD` strings sort/compare correctly as plain strings.
+      const d = typeof value === 'string' ? value : null
+      const { min, max } = cond.date
+      switch (cond.op) {
+        case 'after':
+          return min == null ? true : d != null && d > min
+        case 'before':
+          return max == null ? true : d != null && d < max
+        case 'on':
+          return min == null ? true : d != null && d === min
+        default: // 'between' (one-sided bounds degrade to on-or-after / on-or-before)
+          if (min == null && max == null) return true
+          if (d == null) return false
+          return (min == null || d >= min) && (max == null || d <= max)
+      }
+    }
   }
 }
 

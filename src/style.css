@@ -123,7 +123,37 @@ body {
   margin-left: auto;
 }
 .site-download {
+  position: relative;
   display: inline-flex;
+  /* Always a plain dark gray, regardless of the badge's own (brand) color —
+     the icon itself never signals state, only the badge does. */
+  color: var(--ink-soft);
+}
+/* Count of files added to the download list via the results table's batch
+   selection toolbar (see `.batch-toolbar` / main.ts). Brand teal fill with
+   white text so it reads as a distinct notification, not just more chrome —
+   contrasting deliberately with the icon's own neutral gray. Hidden until
+   at least one file has been added. */
+.download-badge {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #39ac97;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 0 0 2px #fff;
+}
+.download-badge[hidden] {
+  display: none;
 }
 .site-avatar-wrap {
   display: inline-flex;
@@ -163,14 +193,7 @@ body {
 }
 
 .builder {
-  /* `.content-col` is a column flex container, so these are cross-axis
-     (horizontal) margins — `auto` there disables flex stretch, letting
-     `.builder` shrink to its content's width instead of filling the column.
-     An explicit width forces it to fill first; max-width then caps it and
-     the auto margins center the capped box, as intended. */
   width: 100%;
-  max-width: min(100%, 1600px);
-  margin: 0 auto;
   padding: 2rem 1.5rem 1rem;
 }
 
@@ -594,21 +617,30 @@ body {
   color: #fff;
 }
 
-/* Match count badge — a soft tint of the site's teal brand color (the same
-   #39ac97 used for nav/tab highlights elsewhere), with a bold, oversized
-   number so the count itself draws the eye, and a muted label beside it.
-   Lightly rounded, not a full pill. */
-.builder-header .results-count {
+/* Wraps the disclosure link and the count badge in one row, the link sitting
+   outside (to the left of) the badge's tinted background — same treatment
+   as the Characterizations "Why can't I see the counts?" link: a plain text
+   link, not part of the colored chip. */
+.builder-header .results-count-wrap {
   /* Out of flow — a tall badge here would otherwise push the tree/summary
      below it down every time it grows (e.g. the disclosure link appearing). */
   position: absolute;
   top: 0;
   right: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.4rem 0.9rem 0.7rem;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+/* Match count badge — a soft tint of the site's teal brand color (the same
+   #39ac97 used for nav/tab highlights elsewhere), with a bold, oversized
+   number so the count itself draws the eye, and a muted label beside it.
+   Lightly rounded, not a full pill. */
+.builder-header .results-count {
+  display: flex;
+  align-items: baseline;
+  padding: 0.3rem 0.9rem;
   border-radius: 3px;
   background: color-mix(in srgb, #39ac97 12%, white);
   transform-origin: center;
@@ -653,9 +685,8 @@ body {
   color: var(--ink-soft);
 }
 
-/* Sits inside the count badge, centered beneath the number row; shown only
-   when the count is actually rounded (not the suppressed "<20" state, not
-   exact 0). */
+/* Sits outside the count badge, to its left; shown only when the count is
+   actually rounded (not the suppressed "<20" state, not exact 0). */
 .results-count-disclosure {
   border: none;
   background: none;
@@ -928,6 +959,20 @@ body {
   font-size: 0.85rem;
   padding: 0.35rem 0.15rem;
   font-style: italic;
+}
+
+/* Read-only echo of the group's own combinator, placed between every pair of
+   sibling rows — not attached to either row — so toggling the pill reads as
+   changing the relationship of everyone in the group, not just new items. */
+.combinator-connector {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.1rem 0.15rem;
+  color: var(--and);
+}
+.combinator-connector.or {
+  color: var(--or);
 }
 
 /* ---------- Segmented AND / OR ---------- */
@@ -1389,6 +1434,78 @@ summary.inline-select:hover {
   width: 10rem;
 }
 
+/* Date values (date conditions): a MUI X `DateField`, mounted via
+   `ui/dateField.ts`. Restyled to match `.num-input`/`.text-input` — grey
+   pill, no border until focus, same height/radius/font — instead of MUI's
+   default outlined-with-floating-label look, so it reads as one of this
+   row's own controls rather than an obviously-different embedded widget. */
+.date-field-mount {
+  display: inline-flex;
+  align-items: center;
+  width: 10rem;
+}
+.date-field-mount .MuiFormControl-root {
+  width: 100%;
+}
+/* MUI X's `DateField` does NOT reuse @mui/material's TextField/OutlinedInput
+   under the hood — it has its own `PickersTextField`/`PickersOutlinedInput`/
+   `PickersInputBase` components with their own class namespaces
+   (`MuiPickersOutlinedInput-*` / `MuiPickersInputBase-*`), confirmed by
+   reading node_modules/@mui/x-date-pickers/PickersTextField's source.
+   Targeting the plain `MuiOutlinedInput-*` classes (as if this were a
+   regular MUI TextField) silently matches nothing. */
+.date-field-mount .MuiPickersOutlinedInput-root {
+  height: 30px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 7px;
+  background: var(--gray-100);
+  padding: 0 0.55rem;
+}
+.date-field-mount .MuiPickersOutlinedInput-root:hover {
+  background: var(--gray-200);
+}
+/* `focused`/`disabled`/`error` are MUI's shared "global state" classes
+   (`generateUtilityClass`'s `globalStateClasses` map) — even on this custom
+   component they come out as the generic `Mui-focused`, not a
+   `MuiPickersInputBase-`/`MuiPickersOutlinedInput`-prefixed one. */
+.date-field-mount .MuiPickersOutlinedInput-root.Mui-focused {
+  background: var(--surface);
+}
+.date-field-mount .MuiPickersOutlinedInput-notchedOutline {
+  border-color: transparent;
+  /* Matches the root's own radius — otherwise the border overlay's square
+     corners show through the pill's rounded background on focus. */
+  border-radius: 7px;
+}
+.date-field-mount .MuiPickersOutlinedInput-root.Mui-focused .MuiPickersOutlinedInput-notchedOutline {
+  border: 2px solid var(--and);
+}
+/* The sections container (the "input" slot) is its own component, with its
+   own default vertical padding (8.5px top/bottom at `size="small"`) and an
+   em-based `line-height` computed off whatever font-size it inherits (not
+   necessarily our 0.85rem override on the segments below) — both fight a
+   flat 30px height. Zeroing the padding and pinning line-height to the
+   container's own pixel height (rather than an em value) settles it at
+   exactly 30px instead of whatever MUI's own baseline math produces. */
+.date-field-mount .MuiPickersOutlinedInput-input {
+  padding: 0;
+  line-height: 30px;
+}
+/* The individual date segments (year/month/day, and their placeholder text
+   like "YYYY" before a value is entered) are rendered by a *further* nested
+   component, `PickersSectionList` — its own class namespace
+   (`MuiPickersSectionList-*`), confirmed via its
+   `getPickersSectionListUtilityClass` source, distinct from both
+   `MuiPickersOutlinedInput-*` and `MuiPickersInputBase-*`. Not targeting
+   this specifically is why the placeholder text wasn't rendering with the
+   intended color/size at all. */
+.date-field-mount .MuiPickersSectionList-sectionContent {
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
 /* Native select — used only by the header's preset picker. */
 select {
   font: inherit;
@@ -1448,7 +1565,7 @@ select:focus-visible {
 /* ---------- Summary ---------- */
 
 .summary {
-  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
   padding: 1rem 1.1rem;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -1468,12 +1585,33 @@ select:focus-visible {
   color: var(--ink-faint);
   font-weight: 700;
 }
+/* Plain/SQL view switcher: the small segmented pill, but with a neutral
+   active fill — blue and amber actives are reserved for AND/OR. (This rule
+   sits after the .segmented ones so it wins the specificity tie.) */
+.view-toggle .seg {
+  font-size: 0.7rem;
+  padding: 0.26rem 0.55rem;
+}
+.segmented.view-toggle .seg.active {
+  background: var(--ink-soft);
+}
 .summary-text {
   margin: 0;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 0.9rem;
   color: var(--ink);
   word-break: break-word;
+}
+/* SQL view is pre-formatted: line breaks and indents carry the nesting. */
+.summary-text.sql {
+  white-space: pre-wrap;
+}
+/* Shown instead of the (otherwise unhelpful) "(unset condition)" sentence
+   before any property has been picked anywhere in the tree. */
+.summary-text.summary-placeholder {
+  font-family: inherit;
+  font-style: italic;
+  color: var(--ink-faint);
 }
 /* Boolean operators carry the tree's color language into the sentence. */
 .summary-text .op-and {
@@ -1493,7 +1631,10 @@ select:focus-visible {
 
 .characterizations {
   margin: 16px 24px 0;
+  padding: 1rem 1.1rem;
   background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
 .char-head {
   display: flex;
@@ -1619,7 +1760,10 @@ select:focus-visible {
   overflow-x: auto;
 }
 .results-table {
-  width: 100%;
+  /* Fills the wrap when the columns fit; grows past it (letting the wrap's
+     own overflow-x scroll) once they don't, rather than squeezing columns. */
+  min-width: 100%;
+  width: max-content;
   border-collapse: collapse;
   font-size: 0.82rem;
   font-family: "DM Sans", system-ui, sans-serif;
@@ -1765,6 +1909,117 @@ select:focus-visible {
 .pager-btn:disabled {
   color: var(--ink-faintest);
   cursor: default;
+}
+
+/* Batch-selection toolbar: appears once 1+ result rows are checked, floats
+   above everything, full viewport width. Slides up from off-screen rather
+   than toggling `hidden` outright so its appearance/disappearance is
+   noticeable — a state change this consequential (the whole set of checked
+   rows) shouldn't happen silently. */
+.batch-toolbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 24px;
+  background: var(--surface);
+  box-shadow: 0 -4px 10px rgba(20, 30, 50, 0.08);
+  transform: translateY(100%);
+  transition: transform 0.18s ease-out;
+}
+.batch-toolbar.visible {
+  transform: translateY(0);
+}
+.batch-toolbar-clear {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--exclude);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.batch-toolbar-clear:hover {
+  color: var(--exclude);
+  text-decoration: underline;
+}
+.batch-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+.batch-toolbar-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+/* Same treatment as the nav's `.download-badge` — brand teal fill, white
+   text — so the two "count of things" badges in the UI read as one visual
+   language. */
+.batch-toolbar-count-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #39ac97;
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.batch-toolbar-add-btn {
+  border: none;
+  border-radius: 6px;
+  background: #39ac97;
+  color: #fff;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.batch-toolbar-add-btn:hover {
+  background: color-mix(in srgb, #39ac97 85%, black);
+}
+
+/* Small "this is only a demo" disclaimer, pinned to the bottom-left corner.
+   Static chrome (index.html), not part of the product — see CLAUDE.md's
+   "Not part of the product". Deliberately low z-index relative to the
+   batch-selection toolbar (200): if that toolbar is open, it's fine for it
+   to sit in front of this badge rather than the two visually fighting for
+   the same corner. */
+.demo-notice {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 150;
+  max-width: 220px;
+  padding: 0.6rem 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--or);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+.demo-notice p {
+  margin: 0;
+}
+.demo-notice p.demo-notice-title {
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 0.15rem;
 }
 
 /* Floating dev-tools menu (preset loader + Clear all). Hidden by default;

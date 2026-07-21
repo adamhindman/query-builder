@@ -8,11 +8,13 @@ import { renderSidebar } from './ui/sidebar'
 import { renderFacetSidebar } from './ui/facetSidebar'
 import { confirmModal, modalRoot, infoModal, infoModalRoot } from './ui/modal'
 import { summarize } from './query/summary'
+import { toSql } from './query/sql'
 import { getProperty } from './data/properties'
 import { RECORDS, type RecordValue } from './data/records'
 import { filterRecords } from './query/evaluate'
 import { SUPPRESSION_THRESHOLD, isBelowThreshold, approximateCount } from './query/rounding'
 import { renderCharacterizations } from './ui/characterizations'
+import { unmountAllDateFields } from './ui/dateField'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -23,14 +25,46 @@ const store = new QueryStore(defaultQuery())
 const treeMount = el('div', { class: 'tree-mount' })
 const summaryText = el('p', { class: 'summary-text' })
 
+// The summary can read as plain English or as SQL — a pill switcher next to
+// "Reads as" picks the view. Local UI state, not query state: it lives here
+// in the persistent shell, untouched by tree re-renders.
+let summaryMode: 'plain' | 'sql' = 'plain'
+
+const makeViewBtn = (mode: typeof summaryMode, label: string): HTMLElement =>
+  el(
+    'button',
+    {
+      type: 'button',
+      class: `seg${summaryMode === mode ? ' active' : ''}`,
+      'aria-pressed': String(summaryMode === mode),
+      onclick: () => setSummaryMode(mode),
+    },
+    label,
+  )
+const plainBtn = makeViewBtn('plain', 'Plain English')
+const sqlBtn = makeViewBtn('sql', 'SQL')
+
+function setSummaryMode(mode: typeof summaryMode): void {
+  summaryMode = mode
+  for (const [btn, m] of [
+    [plainBtn, 'plain'],
+    [sqlBtn, 'sql'],
+  ] as const) {
+    btn.classList.toggle('active', mode === m)
+    btn.setAttribute('aria-pressed', String(mode === m))
+  }
+  renderSummary()
+}
+
 // Results: the query run against the mock participants table. The count and a
 // small preview re-render on every store change.
 const resultsCountNum = el('span', { class: 'results-count-num' })
 const resultsCountLabel = el('span', { class: 'results-count-label' })
 const resultsCountRow = el('span', { class: 'results-count-row' }, resultsCountNum, resultsCountLabel)
 // Explains the rounding above, shown only alongside a rounded (i.e. not
-// suppressed, not zero) count. Lives inside the count badge itself,
-// centered beneath the number row.
+// suppressed, not zero) count. Sits outside the tinted badge, to its left —
+// a plain text link, same treatment as the Characterizations "Why can't I
+// see the counts?" link.
 const resultsCountDisclosure = el(
   'button',
   {
@@ -55,26 +89,141 @@ const resultsCountDisclosure = el(
   },
   'Results approximated.',
 )
-const resultsCount = el(
+const resultsCount = el('div', { class: 'results-count' }, resultsCountRow)
+const resultsCountWrap = el(
   'div',
-  { class: 'results-count' },
-  resultsCountRow,
+  { class: 'results-count-wrap' },
   resultsCountDisclosure,
+  resultsCount,
 )
 const resultsTable = el('div', { class: 'results-table-wrap' })
 
 // Live count in the static Explore toolbar (markup lives in index.html).
 const toolbarCount = document.querySelector<HTMLElement>('.toolbar-count')
 
-// Columns spanning the kinds — id plus a representative property of each.
+// --- Batch row selection --------------------------------------------------
+//
+// Local UI state, not query state: which result rows (by id) are checked.
+// Persists across pager clicks (so a selection can span pages of the same
+// query) but is cleared whenever the query itself changes, since the
+// underlying result set — and therefore which ids are even still valid —
+// changes out from under it.
+const selectedIds = new Set<string>()
+
+const batchClearBtn = el(
+  'button',
+  { type: 'button', class: 'batch-toolbar-clear', onclick: () => clearSelection() },
+  'Clear selection',
+)
+const batchCount = el('span', { class: 'batch-toolbar-count' })
+const batchAddBtn = el(
+  'button',
+  {
+    type: 'button',
+    class: 'batch-toolbar-add-btn',
+    // Adds the current selection to the (persisted) download list, but
+    // deliberately does NOT clear the selection or uncheck rows — the rows
+    // stay checked and the toolbar stays open, so adding is not the same
+    // gesture as being done with the selection (that's what "Clear
+    // selection" is for).
+    onclick: () => addToDownloadList(selectedIds),
+  },
+  'Add to Download List',
+)
+const batchToolbar = el(
+  'div',
+  { class: 'batch-toolbar' },
+  batchClearBtn,
+  el('div', { class: 'batch-toolbar-right' }, batchCount, batchAddBtn),
+)
+
+function updateBatchToolbar(): void {
+  const n = selectedIds.size
+  batchToolbar.classList.toggle('visible', n > 0)
+  batchCount.innerHTML = `<span class="batch-toolbar-count-num">${n.toLocaleString()}</span> selected`
+}
+
+function toggleRowSelected(id: string, checked: boolean): void {
+  if (checked) selectedIds.add(id)
+  else selectedIds.delete(id)
+  updateBatchToolbar()
+}
+
+function clearSelection(): void {
+  if (selectedIds.size === 0) return
+  selectedIds.clear()
+  updateBatchToolbar()
+  // Re-render just the rows so their checkboxes visibly uncheck — cheaper
+  // than a full store-driven re-render, and selection isn't query state.
+  renderResults()
+}
+
+// The download list itself: which Syn IDs have been added, persisted to
+// localStorage so it survives a reload. Tracking actual ids (not just a
+// running count) means adding the same row twice — in the same session or
+// across reloads — never double-counts it, since a Set stays deduplicated.
+//
+// Restoring on reload is deliberately partial: the *count* comes back (read
+// once at startup, below), but which rows are checked does not — the batch
+// toolbar only reappears once the user checks a row again this session.
+const DOWNLOAD_LIST_STORAGE_KEY = 'query-builder:download-list'
+
+function loadDownloadList(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DOWNLOAD_LIST_STORAGE_KEY)
+    const ids = raw ? JSON.parse(raw) : []
+    return Array.isArray(ids) ? new Set(ids.filter((id): id is string => typeof id === 'string')) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function saveDownloadList(ids: Set<string>): void {
+  try {
+    localStorage.setItem(DOWNLOAD_LIST_STORAGE_KEY, JSON.stringify([...ids]))
+  } catch {
+    // Storage unavailable/full — the in-memory list and badge still work
+    // for the rest of this session, they just won't survive a reload.
+  }
+}
+
+const downloadBadge = document.querySelector<HTMLElement>('.download-badge')
+const downloadList = loadDownloadList()
+
+function renderDownloadBadge(): void {
+  if (!downloadBadge) return
+  downloadBadge.textContent = downloadList.size > 99 ? '99+' : String(downloadList.size)
+  downloadBadge.hidden = downloadList.size === 0
+}
+renderDownloadBadge()
+
+function addToDownloadList(ids: Iterable<string>): void {
+  for (const id of ids) downloadList.add(id)
+  saveDownloadList(downloadList)
+  renderDownloadBadge()
+}
+
+// Columns spanning the kinds/categories — id plus a representative property
+// of each. Wider than fits most viewports on purpose; `.results-table-wrap`
+// scrolls horizontally rather than letting columns get cramped.
 const RESULT_COLUMNS = [
   'fileName',
   'dataType',
   'assayType',
   'fileFormat',
   'isMultiSpecimen',
+  'isPartOfDataset',
   'fileSizeBytes',
   'studyCode',
+  'countryCode',
+  'cohort',
+  'diagnosis',
+  'sex',
+  'age',
+  'visitCode',
+  'enrollmentDate',
+  'hasBiomarkerData',
+  'apoeGenotype',
 ]
 const PAGE_SIZE = 25
 
@@ -218,16 +367,26 @@ const builderTop = el(
   el(
     'header',
     { class: 'builder-header' },
-    el('div', { class: 'builder-title-group' }, el('h1', {}, 'Query Builder'), qbHelpBtn),
-    resultsCount,
+    el('div', { class: 'builder-title-group' }, el('h1', {}, 'Cohort Builder'), qbHelpBtn),
+    resultsCountWrap,
   ),
-  treeMount,
   el(
     'section',
     { class: 'summary' },
-    el('div', { class: 'summary-head' }, el('h2', {}, 'Reads as')),
+    el(
+      'div',
+      { class: 'summary-head' },
+      el('h2', {}, 'Query Summary'),
+      el(
+        'div',
+        { class: 'segmented view-toggle', role: 'group', 'aria-label': 'Summary format' },
+        plainBtn,
+        sqlBtn,
+      ),
+    ),
     summaryText,
   ),
+  treeMount,
 )
 
 // The results panel (and characterizations, below) span the full remaining
@@ -261,6 +420,11 @@ const querySidebar = renderSidebar(store)
 type ViewMode = 'browse' | 'builder'
 let mode: ViewMode = 'builder'
 
+// Tracked so `applyMode` (which runs independently of a query change, e.g. on
+// the browse/builder toolbar toggle) can factor the suppression state into
+// characterizations' visibility too, not just the current view mode.
+let lastBelowThreshold = false
+
 const qbToggleBtn = document.querySelector<HTMLButtonElement>('.toolbar-qb-btn')
 const qbToggleLabel = document.querySelector<HTMLElement>('.toolbar-qb-label')
 
@@ -268,7 +432,7 @@ function applyMode(): void {
   facetSidebar.hidden = mode !== 'browse'
   querySidebar.hidden = mode !== 'builder'
   builderMain.hidden = mode !== 'builder'
-  characterizations.hidden = mode !== 'builder'
+  updateCharacterizationsVisibility()
   qbToggleBtn?.classList.toggle('active', mode === 'builder')
   if (qbToggleLabel) qbToggleLabel.textContent = mode === 'builder' ? 'Exit Query Builder' : 'Query Builder'
   // Brackets are measured via getBoundingClientRect, which returns all-zero
@@ -303,6 +467,7 @@ app.replaceChildren(
   devMenu,
   modalRoot(),
   infoModalRoot(),
+  batchToolbar,
 )
 applyMode()
 
@@ -321,13 +486,22 @@ function summaryHtml(text: string): string {
 }
 
 function renderSummary(): void {
-  summaryText.innerHTML = summaryHtml(summarize(store.get()))
+  const noConditionsSet = usedPropertyIds(store.get()).size === 0
+  summaryText.classList.toggle('summary-placeholder', noConditionsSet)
+  summaryText.classList.toggle('sql', !noConditionsSet && summaryMode === 'sql')
+  summaryText.innerHTML = noConditionsSet
+    ? 'Pick a property below to start building your query.'
+    : summaryHtml(summaryMode === 'sql' ? toSql(store.get()) : summarize(store.get()))
 }
 
 // Re-triggered only when the match count actually changes (not on every
 // render — pager clicks call renderResults too, but rarely change the
 // count), so the badge doesn't pulse on every keystroke-driven re-render.
 let lastMatchCount: number | null = null
+
+function updateCharacterizationsVisibility(): void {
+  characterizations.hidden = mode !== 'builder' || lastBelowThreshold
+}
 
 function renderResults(): void {
   const matches = filterRecords(RECORDS, store.get())
@@ -350,6 +524,12 @@ function renderResults(): void {
   const displayCount = approximateCount(matches.length)
   resultsCountNum.textContent = displayCount
   resultsCountLabel.textContent = 'matches'
+  // Characterizations' per-value bar charts would be even more identifying
+  // than the plain match count at this size, so hide the whole section
+  // rather than let its own (already-rounded) bars imply a precision the
+  // suppressed count denies.
+  lastBelowThreshold = belowThreshold
+  updateCharacterizationsVisibility()
   resultsCount.classList.toggle('low-count', belowThreshold)
   resultsCountDisclosure.hidden = !isRounded
 
@@ -417,7 +597,13 @@ function renderResults(): void {
             el(
               'td',
               { class: 'td-check' },
-              el('input', { type: 'checkbox', class: 'row-check', 'aria-label': `Select ${rec.id}` }),
+              el('input', {
+                type: 'checkbox',
+                class: 'row-check',
+                'aria-label': `Select ${rec.id}`,
+                checked: selectedIds.has(rec.id),
+                onchange: (e: Event) => toggleRowSelected(rec.id, (e.target as HTMLInputElement).checked),
+              }),
             ),
             el('td', { class: 'results-id' }, rec.id),
             ...RESULT_COLUMNS.map((id) => {
@@ -471,13 +657,21 @@ function renderResults(): void {
 }
 
 function render(): void {
+  // Unmount any date-field React roots from the tree about to be discarded
+  // — the full-teardown convention (`clear`) doesn't otherwise call React's
+  // own unmount, which would leak/warn.
+  unmountAllDateFields()
   clear(treeMount)
   treeMount.appendChild(renderTree(store))
   alignBrackets(treeMount)
   renderSummary()
-  // A query change is a new result set — jump back to the first page. (Pager
-  // clicks call renderResults directly and keep their page.)
+  // A query change is a new result set — jump back to the first page (pager
+  // clicks call renderResults directly and keep their page) and drop any
+  // batch selection, since the ids it references may no longer even be in
+  // the result set.
   resultsPage = 0
+  selectedIds.clear()
+  updateBatchToolbar()
   renderResults()
 }
 

@@ -9,6 +9,8 @@
  *   - 'range'   → two number inputs, min and max (no operator); >=/<= express
  *                 open-ended ranges
  *   - 'text'    → free-text input with contains/starts/ends/equals operators
+ *   - 'date'    → one or two MUI X `DateField` inputs, with an
+ *                 on/before/after/between operator
  */
 
 export type PropertyValue = {
@@ -51,4 +53,8 @@ export type TextProperty = PropertyBase & {
   kind: 'text'
 }
 
-export type Property = EnumProperty | BooleanProperty | RangeProperty | TextProperty
+export type DateProperty = PropertyBase & {
+  kind: 'date'
+}
+
+export type Property = EnumProperty | BooleanProperty | RangeProperty | TextProperty | DateProperty

@@ -20,6 +20,7 @@ import {
   removeNode,
   setBool,
   setCombinator,
+  setDate,
   setOp,
   setProperty,
   setRange,
@@ -27,6 +28,7 @@ import {
   toggleExclude,
   toggleValue,
 } from '../query/model'
+import { mountDateField } from './dateField'
 
 const OP_LABELS: Record<ConditionOp, string> = {
   any: 'is any of',
@@ -42,6 +44,9 @@ const OP_LABELS: Record<ConditionOp, string> = {
   startsWith: 'starts with',
   endsWith: 'ends with',
   equals: 'is exactly',
+  on: 'is on',
+  before: 'is before',
+  after: 'is after',
   hasValue: 'has a value',
   noValue: 'has no value',
 }
@@ -62,6 +67,7 @@ const KIND_OPS: Record<Property['kind'], ConditionOp[]> = {
   boolean: ['is', 'hasValue', 'noValue'],
   range: ['between', 'gt', 'lt', 'gte', 'lte', 'hasValue', 'noValue'],
   text: ['contains', 'startsWith', 'endsWith', 'equals', 'hasValue', 'noValue'],
+  date: ['on', 'before', 'after', 'between', 'hasValue', 'noValue'],
 }
 
 const isPresence = (op: ConditionOp): boolean => op === 'hasValue' || op === 'noValue'
@@ -84,6 +90,12 @@ const PILL_TRAY_THRESHOLD = 50
  * `false` to hide the drag handles, drop zones, and draggable cards.
  */
 const DND_ENABLED = true
+
+/**
+ * The between-row "AND"/"OR" combinator connector (see `renderChildren`) is
+ * hidden for now, per request — flip to `true` to bring it back.
+ */
+const COMBINATOR_CONNECTOR_ENABLED = false
 
 /**
  * Drag state lives outside the tree: it's transient UI, not query data.
@@ -202,7 +214,17 @@ function renderGroup(store: QueryStore, group: Group, isRoot: boolean): HTMLElem
   return card
 }
 
-/** Children as borderless rows, separated by drop zones (when DnD is enabled). */
+/**
+ * Children as borderless rows, separated by drop zones (when DnD is enabled)
+ * and — between every pair of siblings — a small connector label spelling
+ * out the group's own combinator ("AND"/"OR"). The pill at the top of the
+ * group is the only thing that actually sets the combinator; the connector
+ * is a read-only echo of it, placed literally between the rows it joins so
+ * it can't be mistaken for a property of the row that follows it (that
+ * misreading is exactly what prompted this — testers seeing "OR" and adding
+ * a condition sometimes assumed only the new row became "OR-ish", not that
+ * toggling the pill already reinterprets every sibling in the group).
+ */
 function renderChildren(store: QueryStore, group: Group): HTMLElement[] {
   const kids = group.children
   const out: HTMLElement[] = []
@@ -212,6 +234,15 @@ function renderChildren(store: QueryStore, group: Group): HTMLElement[] {
   }
   kids.forEach((child, i) => {
     out.push(renderNode(store, child))
+    if (COMBINATOR_CONNECTOR_ENABLED && i < kids.length - 1) {
+      out.push(
+        el(
+          'div',
+          { class: `combinator-connector ${group.combinator.toLowerCase()}`, 'aria-hidden': 'true' },
+          group.combinator,
+        ),
+      )
+    }
     if (DND_ENABLED) out.push(dropZone(store, group.id, i + 1))
   })
   return out
@@ -372,6 +403,28 @@ function conditionControls(store: QueryStore, cond: Condition, property: Propert
     case 'text': {
       return [opSelect, textInput(cond.text, (v) => store.update((s) => setText(s, cond.id, v)))]
     }
+
+    case 'date': {
+      if (cond.op === 'between') {
+        return [
+          opSelect,
+          dateInput(cond.date.min, 'From', (v) =>
+            store.update((s) => setDate(s, cond.id, v, cond.date.max)),
+          ),
+          el('span', { class: 'input-word' }, 'and'),
+          dateInput(cond.date.max, 'To', (v) =>
+            store.update((s) => setDate(s, cond.id, cond.date.min, v)),
+          ),
+        ]
+      }
+      // 'on'/'after' keep their value in min, 'before' in max — same
+      // min/max convention as range's gt/gte (min) and lt/lte (max).
+      const usesMin = cond.op === 'on' || cond.op === 'after'
+      const input = usesMin
+        ? dateInput(cond.date.min, 'Date', (v) => store.update((s) => setDate(s, cond.id, v, null)))
+        : dateInput(cond.date.max, 'Date', (v) => store.update((s) => setDate(s, cond.id, null, v)))
+      return [opSelect, input]
+    }
   }
 }
 
@@ -465,6 +518,17 @@ function textInput(value: string | null, onCommit: (v: string | null) => void): 
       onCommit(raw === '' ? null : raw)
     },
   })
+}
+
+/**
+ * Date input (date conditions) — a MUI X `DateField` mounted into a plain
+ * container (see `ui/dateField.tsx`). Commits on blur, same reasoning as
+ * `numberInput`/`textInput`: every store update fully re-renders the tree.
+ */
+function dateInput(value: string | null, label: string, onCommit: (v: string | null) => void): HTMLElement {
+  const container = el('div', { class: 'date-field-mount', dataset: { nodrag: 'true' } })
+  mountDateField(container, value, label, onCommit)
+  return container
 }
 
 // ---------------------------------------------------------------------------

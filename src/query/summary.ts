@@ -69,6 +69,19 @@ function summarizeCondition(cond: Condition): string {
       if (cond.text == null) return `${property.label} (no value)`
       return `${property.label} ${TEXT_PHRASE[cond.op] ?? 'contains'} "${cond.text}"`
     }
+    case 'date': {
+      const { min, max } = cond.date
+      if (cond.op === 'between') {
+        if (min == null && max == null) return `${property.label} (no value)`
+        if (min != null && max != null) return `${property.label} is between ${min} and ${max}`
+        if (min != null) return `${property.label} is on or after ${min}`
+        return `${property.label} is on or before ${max}`
+      }
+      // 'on'/'after' keep their value in min, 'before' in max.
+      const bound = cond.op === 'before' ? max : min
+      if (bound == null) return `${property.label} (no value)`
+      return `${property.label} ${DATE_PHRASE[cond.op] ?? 'is on'} ${bound}`
+    }
   }
 }
 
@@ -90,4 +103,10 @@ const TEXT_PHRASE: Partial<Record<Condition['op'], string>> = {
   startsWith: 'starts with',
   endsWith: 'ends with',
   equals: 'is exactly',
+}
+
+const DATE_PHRASE: Partial<Record<Condition['op'], string>> = {
+  on: 'is on',
+  before: 'is before',
+  after: 'is after',
 }

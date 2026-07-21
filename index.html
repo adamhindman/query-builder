@@ -70,11 +70,12 @@
       </nav>
 
       <div class="site-actions">
-        <span class="site-download" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#87878B"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <span class="site-download">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M12 3v12" /><path d="m7 11 5 5 5-5" /><path d="M5 21h14" />
           </svg>
+          <span class="download-badge" hidden></span>
         </span>
         <span class="site-avatar-wrap">
           <span class="site-avatar">A</span>
@@ -188,6 +189,14 @@
         </p>
       </div>
     </footer>
+
+    <!-- Static demo-disclaimer badge: non-functional, lives outside #app.
+         Omit when rebuilding — see CLAUDE.md's "Not part of the product". -->
+    <div class="demo-notice" role="note">
+      <p class="demo-notice-title">This is a design demo</p>
+      <p>Functionality is very limited</p>
+      <p>Data is not realistic</p>
+    </div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -68,6 +68,14 @@ function genValue(property: Property, rand: () => number, index: number): Record
       return 100 + Math.floor(rand() * 401) // other range properties (e.g. field center code)
     case 'text':
       return rand() < MISSING ? null : genFileName(rand, index)
+    case 'date': {
+      if (rand() < MISSING) return null
+      // A plausible enrollment window; deterministic (seeded `rand`), not
+      // tied to the real current date.
+      const start = Date.UTC(2015, 0, 1)
+      const end = Date.UTC(2023, 11, 31)
+      return new Date(start + Math.floor(rand() * (end - start))).toISOString().slice(0, 10)
+    }
   }
 }
 

@@ -42,6 +42,17 @@ function presenceCond(propertyId: string, op: 'hasValue' | 'noValue'): Condition
   return { ...newCondition(), propertyId, op }
 }
 
+/** on/after keep their value in min, before in max — same convention as cmpCond. */
+function dateCond(propertyId: string, op: 'on' | 'before' | 'after', value: string): Condition {
+  const usesMin = op === 'on' || op === 'after'
+  return {
+    ...newCondition(),
+    propertyId,
+    op,
+    date: { min: usesMin ? value : null, max: usesMin ? null : value },
+  }
+}
+
 function group(combinator: Group['combinator'], exclude: boolean, children: Node[]): Group {
   return { ...newGroup(combinator), exclude, children }
 }
@@ -63,6 +74,7 @@ export const PRESETS: Preset[] = [
         presenceCond('apoeGenotype', 'hasValue'),
         cmpCond('visitCode', 'gte', 2),
         rangeCond('fieldCenterCode', 100, 400),
+        dateCond('enrollmentDate', 'after', '2018-01-01'),
         group('OR', false, [
           cond('dataType', 'any', ['gene_expression', 'protein_abundance']),
           textCond('fileName', 'endsWith', '.vcf'),

@@ -35,6 +35,9 @@ The user builds a **query tree**:
     (the last two express an open-ended range)
   - boolean: `is` (the Yes/No selection)
   - text: `contains` / `starts with` / `ends with` / `is exactly`
+  - date: `is on` / `is before` / `is after` / `is between` (the last
+    expresses a closed or one-sided-open date range, same min/max convention
+    as range's gt/gte/lt/lte)
   - any kind: `has a value` / `has no value` — a presence (NULL) test on the
     property itself; when chosen, the condition needs **no value input**.
 
@@ -58,6 +61,22 @@ The UI always renders the whole tree as one sentence, e.g.
 legibility backstop — whatever the visual layout does, the logic can be
 confirmed in words. Keep this feature.
 
+- A small **Plain English | SQL** segmented switcher sits in the "Query Summary" box's
+  header, opposite the heading (`justify-content: space-between`). It's
+  local UI state (`summaryMode`, `main.ts`), not query state — switching it
+  never touches the store. **SQL** renders the same tree via
+  `query/sql.ts`'s `toSql`, an illustrative (not real-database-targeting)
+  `SELECT * FROM participants WHERE …` statement: property ids stand in for
+  column names, `enum any/none` → `IN`/`NOT IN`, `enum all` → an AND-chain of
+  equalities, `boolean` → `= TRUE/FALSE`, `range` → `BETWEEN`/`>`/`<`/`>=`/`<=`,
+  `text` → `LIKE`/`=`, presence → `IS NULL`/`IS NOT NULL`, and an excluded
+  group → `NOT (...)` — mirroring `summarize()`'s partial-state grace by
+  rendering unfinished conditions/empty groups as SQL comments
+  (`/* no property chosen */`) instead of breaking. The summary text switches
+  to `white-space: pre-wrap` (`.summary-text.sql`) only in this mode, since
+  SQL's line breaks/indents carry its nesting instead of prose. Both modes
+  share the same operator-colorizing (`summaryHtml`) and the same
+  "pick a property" placeholder before any condition is set.
 - The **boolean operators are colorized** (blue AND, amber OR, red NOT, bold)
   to match the tree's color language and to keep comma-separated value lists
   from mushing into the operators. Done by escaping the sentence and wrapping
@@ -65,6 +84,12 @@ confirmed in words. Keep this feature.
   uppercase operator word would be miscolored (none exist in practice).
 - The **root group reads without outer parens**; nested groups keep them, and
   an excluded group is always parenthesized so its NOT has unambiguous scope.
+- Before **any property has been picked anywhere in the tree** (startup, or
+  after "Clear all"), the box shows a short italic placeholder — "Pick a
+  property below to start building your query." — instead of running
+  `summarize()`, which would otherwise print the technically-accurate but
+  unhelpful `(unset condition)`. Checked via
+  `usedPropertyIds(tree).size === 0` in `main.ts`'s `renderSummary`.
 
 ---
 
@@ -105,20 +130,26 @@ shows live results, so the query does something, not just render.
   instead of Cancel/Confirm) with a short bullet list covering: one AND/OR
   per group + nesting for mixed logic, group-level NOT vs. the per-condition
   "is none of", what a condition does, drag-to-reorder/move semantics, and
-  the "Reads as" sentence as the always-available plain-English check.
+  the "Query Summary" sentence as the always-available plain-English check.
 - The **Results panel** is a **paginated** table (25 rows per page, prev/next
-  + "Page x of y", a representative column per kind) with no border/padding
-  around its container, spanning the full remaining browser width to the
-  right of the sidebar (not capped at the builder's 1600px max-width), with a
-  40px margin on all sides. Its header row is styled after
-  eliteportal.synapse.org's results table: a light-gray header band, a
-  leading (non-functional) checkbox column, a decorative sort-glyph in every
-  header cell plus a help icon on ID and a filter icon on Sex, and numeric
-  columns right-aligned with tabular figures. These header icons and
-  checkboxes are pure chrome — the table doesn't actually sort, filter, or
-  select rows. Page index is local UI state, reset to the first page on any
-  query change (pager clicks re-render just the results and keep their
-  page). It re-renders on every store change, alongside the summary.
+  + "Page x of y", `RESULT_COLUMNS` in `main.ts` — a representative column
+  spanning most kinds/categories, deliberately more than fit most
+  viewports) with no border/padding around its container, spanning the full
+  remaining browser width to the right of the sidebar, with a 40px margin on
+  all sides. Its header row is styled after eliteportal.synapse.org's
+  results table: a light-gray header band, a leading checkbox column, a
+  decorative sort-glyph in every header cell plus a help icon on ID and a
+  filter icon on Sex, and numeric columns right-aligned with tabular
+  figures. The header icons and sort-glyphs are pure chrome — the table
+  doesn't actually sort or filter — but the **row checkboxes are real**;
+  see "Batch selection" below. `.results-table-wrap` scrolls **horizontally** on its own
+  (`overflow-x: auto`) once the columns don't fit, rather than the page body
+  scrolling or the columns being squeezed — `.results-table` uses
+  `width: max-content; min-width: 100%` (not a plain `100%`) specifically so
+  it's free to grow past its container instead of always matching it. Page
+  index is local UI state, reset to the first page on any query change
+  (pager clicks re-render just the results and keep their page). It
+  re-renders on every store change, alongside the summary.
 - **Privacy suppression threshold** (`SUPPRESSION_THRESHOLD = 20` in
   `main.ts`): mirrors the backend design doc's count-threshold gate. A count
   of exactly **0** is shown as-is (the existing "No participants match this
@@ -138,9 +169,11 @@ shows live results, so the query does something, not just render.
   suppression threshold, it's rounded to the nearest 10
   (`Math.round(matches.length / 10) * 10`) and prefixed with **"≈"**, with a
   small orange **"Rounded"** pill next to it (`.results-rounded-badge`,
-  reusing the same `--or`/`--or-soft` orange as the low-count badge). Below
-  the count, a **"How this number was computed" disclosure link**
-  (`.results-count-disclosure`) opens the info modal with an explanation —
+  reusing the same `--or`/`--or-soft` orange as the low-count badge). To the
+  count badge's **left**, outside its tinted background (same treatment as
+  the Characterizations "Why can't I see the counts?" link), a **"How this
+  number was computed" disclosure link** (`.results-count-disclosure`,
+  `.results-count-wrap` holds both) opens the info modal with an explanation —
   currently **placeholder copy** ("Insert methodology here...") to be
   replaced with the real methodology later. None of this applies to the two
   other count states: exact **0** (not sensitive, shown as-is) or the
@@ -173,6 +206,63 @@ shows live results, so the query does something, not just render.
   placeholder** — real results come from the product's data source; the
   evaluator and results UI are the reusable parts.
 
+## Batch selection
+
+Each result row's leading checkbox (`.row-check`) is real: checking one adds
+its Syn ID to a `selectedIds: Set<string>` in `main.ts` — local UI state,
+not query state, so it's untouched by the store/re-render cycle that owns
+the query tree.
+
+- **The toolbar** (`.batch-toolbar`) is a persistent, fixed-position element
+  (built once, not re-created per render, like `resultsCount`) spanning the
+  full viewport width at the bottom of the screen, above all other content
+  (`z-index`). It's hidden (`transform: translateY(100%)`) until
+  `selectedIds.size > 0`, then slides up (`.visible` toggles the transform,
+  transitioned) — chosen over a plain `hidden` toggle so a change this
+  consequential (the whole set of checked rows) is never silent. It
+  disappears the same way the moment the last row is unchecked. **Clear
+  selection** sits on the left, colored `--exclude` red (it's a destructive/
+  undo-the-selection action, same color language as the rest of the app);
+  the **count** and **Add to Download List** button sit on the right. The
+  count's own number sits in a small brand-teal pill
+  (`.batch-toolbar-count-num`) — the same treatment as the nav's
+  `.download-badge` — so the two "count of things" indicators in the UI
+  read as one visual language.
+- **Selection persists across pager clicks** (`goto` calls `renderResults`
+  directly, which rebuilds each checkbox's `checked` from `selectedIds`) —
+  a selection can span multiple pages of the same query. It's **cleared on
+  any query change** (in `render()`, before `renderResults()`), since the
+  ids it references may not even be in the new result set, and clearing
+  keeps "what's selected" from silently going stale.
+- **"Add to Download List"** unions `selectedIds` into a separate,
+  **persisted** `downloadList: Set<string>` (`main.ts`,
+  `localStorage['query-builder:download-list']`, JSON array of Syn IDs) and
+  updates the nav badge — but deliberately does **not** clear the selection
+  or uncheck rows: adding is not the same gesture as being done with the
+  selection (that's what "Clear selection" is for), so the rows stay
+  checked and the toolbar stays open. Tracking actual ids (a `Set`) rather
+  than a running count means adding the same row twice — same session or
+  across reloads — never double-counts it.
+- **Reload restores the count, deliberately not the checkboxes.** On
+  startup, `loadDownloadList()` reads the persisted set once (wrapped in
+  try/catch — a corrupted or unavailable `localStorage` just falls back to
+  empty) and the nav badge reflects its size immediately. Rows are **not**
+  pre-checked from it, and the batch toolbar does **not** reappear on load
+  — `selectedIds` always starts empty; the toolbar only shows up again once
+  the user checks a row in the new session. The download list and the
+  on-page selection are two independent sets that only interact one
+  direction, via "Add to Download List".
+- **The download badge** (`.download-badge`, static markup in
+  `index.html`, `main.ts` owns its text/visibility via `renderDownloadBadge`)
+  sits on the nav's download icon (`.site-download`) — brand teal fill,
+  white text, deliberately contrasting with the icon itself, which stays a
+  plain dark gray (`color: var(--ink-soft)`, via `stroke="currentColor"`)
+  regardless of badge state — the icon never signals state, only the badge
+  does. Hidden whenever the list is empty (including on a fresh browser
+  with nothing ever added); the count caps its **display** at "99+" once
+  `downloadList.size` exceeds 99 (the underlying set keeps growing
+  normally, only the rendered text clamps).
+
 ## Data contract (schema)
 
 Properties are the queryable fields. The shape matters; the specific content is
@@ -186,6 +276,7 @@ type Property =
   | { id; label; category: string; kind: 'boolean' }     // Yes/No
   | { id; label; category: string; kind: 'range'; unit?: string } // min/max numbers
   | { id; label; category: string; kind: 'text' }        // free-text (LIKE)
+  | { id; label; category: string; kind: 'date' }        // MUI X DateField, min/max ISO strings
 ```
 
 Every property carries a **`category`** (Demographic & Clinical, Study &
@@ -204,6 +295,12 @@ flat with no categories — that was wrong; ELITE-47 does have them.)
 - **range** carries its own operator set (`between`/`gt`/`lt`/`gte`/`lte`);
   `gte`/`lte` express an open-ended "at least N" / "at most N" range, so
   there's no separate minimum-only kind.
+- **date** carries its own operator set (`on`/`before`/`after`/`between`),
+  stored as ISO `YYYY-MM-DD` strings — chosen because they sort/compare
+  correctly as plain strings, so `evaluate.ts`/`sql.ts` never need to parse
+  them into `Date` objects. The value input is a single MUI X `DateField`
+  (`on`/`before`/`after`) or two of them (`between`) — see "MUI X date
+  field" under Tech.
 - **No per-option counts.** Production won't have per-value match counts, so
   values carry only `id` + `label`. Don't reintroduce counts.
 
@@ -221,6 +318,7 @@ type ConditionOp =
   | 'between' | 'gt' | 'lt' | 'gte' | 'lte'         // range
   | 'is'                                            // boolean
   | 'contains' | 'startsWith' | 'endsWith' | 'equals' // text
+  | 'on' | 'before' | 'after' | 'between'            // date (shares 'between' with range)
   | 'hasValue' | 'noValue'                          // presence — any kind
 type Condition = {
   kind: 'condition'; id; propertyId: string | null
@@ -230,6 +328,8 @@ type Condition = {
   range: { min: number | null; max: number | null }  // range; gt/gte use min,
                                                       // lt/lte use max
   text: string | null        // text
+  date: { min: string | null; max: string | null }   // date (ISO YYYY-MM-DD);
+                                                      // on/after use min, before uses max
 }
 type Group = { kind: 'group'; id; combinator; exclude: boolean; children: Node[] }
 type Node  = Condition | Group
@@ -302,9 +402,22 @@ preserve them.
      does **not** recolor nested groups' brackets.
    - The bracket appears **whenever the group has children — including just
      one** (the line still ties the child back to its group's pill); only an
-     empty group hides it. (The combinator is deliberately *not* repeated as a
-     label on the line — the pill plus the line's color carry it.)
-4. **A condition is one always-visible row with no editing modes.** There is no
+     empty group hides it.
+4. **A combinator connector** (`.combinator-connector`) — a small, read-only
+   "AND"/"OR" label, colored to match (blue/amber) — sits **between every
+   pair of sibling rows** within a group (conditions and/or nested groups),
+   never before the first or after the last. It exists specifically so
+   toggling the group's pill reads as changing the relationship of *every*
+   existing sibling, not just newly-added ones: user testing found some
+   people read "click OR, then + Condition" as "the new condition becomes
+   OR'd in" rather than "the whole group is now OR'd," since the only
+   feedback beforehand was the bracket dimming to a different color. Placing
+   the word literally between rows (not attached to either one) makes the
+   retroactive, whole-group effect unmistakable. It's purely a rendering
+   echo of `group.combinator` — clicking it does nothing; only the pill
+   toggles the value, and the connector re-renders on every state change
+   like everything else.
+5. **A condition is one always-visible row with no editing modes.** There is no
    collapse/expand, no hidden state, nothing to toggle open or closed — every
    part of the row is directly editable in place:
    - A **remove button (trash-can icon, small outlined square) at the start**
@@ -341,7 +454,7 @@ preserve them.
      placeholder, **muted via color — never opacity**: opacity < 1 creates a
      stacking context that traps the row's dropdowns underneath later sibling
      rows. (Open menus also get a raised z-index.)
-5. **Add condition / Add group** as quiet **text-style buttons** in the group's
+6. **Add condition / Add group** as quiet **text-style buttons** in the group's
    top line, right after the AND/OR pill and Exclude toggle — all of a group's
    controls live on one row, so there is no per-group footer. They're
    persistent chrome and must not compete visually with the query content.
@@ -490,8 +603,24 @@ offered — they're the only kinds with a fixed, discrete set of "options" a
 bar can represent; range/text properties have no such options and are left
 out of the picker entirely. Each added chart gets a small "✕" to remove it;
 charts re-render (via `store.subscribe`) whenever the query changes, since
-they characterize the *current* result set.
+they characterize the *current* result set. Unlike the Results panel below
+it, the section has its own **border + padding + radius**
+(`.characterizations`, matching `.summary`'s treatment) so it visually
+reads as its own region between the builder and the (borderless,
+edge-to-edge) Results table.
 
+- **The whole section is hidden while the match count is suppressed**
+  (below `SUPPRESSION_THRESHOLD`, the same "<20" state as the match-count
+  badge) — even though each bar is already rounded/clamped
+  (`approximateCountValue`), a breakdown into several small per-value bars
+  would still be more identifying than a single suppressed count at that
+  cohort size. Tracked in `main.ts` via `lastBelowThreshold`, combined with
+  the current view mode in `updateCharacterizationsVisibility` (so toggling
+  in/out of Query Builder mode and a query dropping below the threshold both
+  correctly factor into `characterizations.hidden`, whichever happens
+  first). Re-showing is automatic — the moment the count rises back to or
+  above the threshold, the section reappears with whatever charts were
+  already selected still in place (they're never cleared, only hidden).
 - **Auto-added once, on the first characterizable property picked.** The
   moment any condition gets a property assigned (typically the tree's
   blank starter condition — its first-ever pick) and no characterization
@@ -598,7 +727,8 @@ when rebuilding, like the preset selector.
 
 ## Tech
 
-- Vanilla **TypeScript**, **Vite** dev server with **HMR**, no UI framework.
+- Vanilla **TypeScript**, **Vite** dev server with **HMR**, no UI framework
+  — **except** the one MUI X date field, below.
 - Global font is **DM Sans** (loaded from Google Fonts in `index.html`);
   falls back to `system-ui`. Because a web font changes text metrics after
   first paint, the bracket re-measure (driven by a `ResizeObserver` on the
@@ -607,6 +737,77 @@ when rebuilding, like the preset selector.
 - `strict` TS; type-check with `tsc --noEmit`, build with `vite build`.
 - Do **not** run the dev server or tests as part of automated changes; verify
   with a type-check/build.
+
+### MUI X date field
+
+The one **date**-kind property's value input is a real
+[MUI X `DateField`](https://mui.com/x/react-date-pickers/date-field/) (the
+"date field" example specifically — a plain segmented text input, not the
+full calendar-popup `DatePicker`), not a hand-rolled `<input type="date">`.
+This is the one place the app pulls in React — everything else stays plain
+DOM, and `@vitejs/plugin-react`/`tsconfig`'s `jsx: "react-jsx"` exist solely
+to compile this one component.
+
+- **Split across two files** so the framework-free convention holds for
+  everything *except* this: `ui/dateField.ts` is thin and always bundled —
+  it only references `Root`'s *type* (erased at compile time, zero runtime
+  weight) and holds a `loadImpl()` lazy loader; `ui/dateFieldImpl.tsx` has
+  the actual `react`/`react-dom`/`@mui/material`/`@mui/x-date-pickers`/
+  `dayjs` value imports and is only ever reached via a dynamic `import()`,
+  so Rollup splits it into its own chunk (`dateFieldImpl-*.js`, ~400KB) that
+  never loads unless a condition actually renders a date field — the same
+  lazy-loading reasoning `characterizations.ts` already uses for Plotly.
+- **Uncontrolled, commits on blur.** Every other value input in the tree
+  (`numberInput`, `textInput`) commits on change/blur rather than per
+  keystroke, because every store update triggers a full tree re-render,
+  which would otherwise steal focus mid-edit. `DateField` follows the same
+  rule: it's mounted with `defaultValue` (uncontrolled), so its own internal
+  state carries an in-progress edit across keystrokes without touching the
+  store; `onChange` only updates a local `useRef`, and `onBlur` is what
+  actually calls `setDate`/re-renders. A fresh `createRoot` + mount happens
+  on every full re-render (matching the app's teardown-and-rebuild
+  convention elsewhere), but since no store update happens until blur, an
+  in-progress edit is never interrupted by one.
+- **Manual unmount, since the app has no other lifecycle hooks.** `clear()`
+  tearing down the tree's DOM doesn't call React's own `root.unmount()`,
+  which would otherwise leak/warn. `ui/dateField.ts` tracks every mounted
+  `Root` in a module-level `Set`; `main.ts`'s `render()` calls
+  `unmountAllDateFields()` right before `clear(treeMount)`, once per render.
+- **Value format:** ISO `YYYY-MM-DD`, both in the stored `Condition.date`
+  fields and in the generated mock data (`data/records.ts`) — chosen so
+  `evaluate.ts`/`sql.ts` can compare dates as plain strings without parsing.
+- **Restyled to match `.num-input`/`.text-input`**, not MUI's default
+  outlined-with-floating-label look: grey pill background, no visible border
+  until focus (a 2px `--and` outline, same as the other inputs), 30px height,
+  0.85rem font. Two non-obvious gotchas, found by reading
+  `node_modules/@mui/x-date-pickers/PickersTextField`'s source rather than
+  guessing from `@mui/material`'s regular `TextField`:
+  - **Wrong class namespace.** `DateField` does not reuse
+    `@mui/material`'s `OutlinedInput` — it has its own
+    `PickersOutlinedInput`/`PickersInputBase` components
+    (`MuiPickersOutlinedInput-*` / `MuiPickersInputBase-*` classes), and the
+    individual date segments (year/month/day, and their placeholder text
+    like "YYYY") are rendered by a *further* nested component,
+    `PickersSectionList` (`MuiPickersSectionList-*`, its own separate
+    namespace again). `focused`/`disabled`/`error` are the exception — MUI's
+    shared "global state" classes, so still the generic `Mui-focused` etc.
+    even here. All of `.date-field-mount`'s selectors in `style.css` target
+    these real names.
+  - **No `label` prop.** `DateField`'s empty-section placeholder text
+    ("YYYY-MM-DD") only renders at a *visible* dimmed opacity when
+    `inputHasLabel` is false (or true with the label actually shrunk into
+    its notch) — see `PickersInputBaseSectionsContainer`'s styled
+    `variants` in `PickersInputBase.js`. Passing a `label` for its
+    accessible name, then hiding it visually via CSS, still leaves
+    `inputHasLabel: true` with a never-shrunk label, which falls through to
+    the *fully invisible* `opacity: 0` variant instead — the placeholder
+    would only appear once focused. Fixed by not passing `label` at all;
+    `aria-label` supplies the accessible name without touching that logic.
+  - The sections container also has its own default vertical padding and an
+    em-based `line-height` that don't naturally settle at 30px — `.date-
+    field-mount`'s `.MuiPickersOutlinedInput-input` zeroes the padding and
+    pins `line-height: 30px` directly (not an em value) to match the root's
+    own fixed, `overflow: hidden` 30px height exactly.
 
 ---
 
@@ -673,6 +874,13 @@ when rebuilding, like the preset selector.
 
 ## Not part of the product (design scaffolding — omit when rebuilding)
 
+- **Demo disclaimer badge** (`.demo-notice`, static markup in `index.html`,
+  bottom-left, fixed): "This is a design demo / Functionality is very
+  limited / Data is not realistic." Purely a prototype-context label for
+  whoever's clicking through this build — has no product meaning and no
+  interactivity. Lower `z-index` than the batch-selection toolbar on
+  purpose, so the two don't visually fight over the same corner if both
+  happen to be showing at once.
 - **Preset selector** ("Load an example…") and **Clear all**: design/testing
   aids to populate or reset the builder. Not a product feature — tucked into
   a hidden floating **dev-tools menu** (⌘/Ctrl+\\) rather than shown in the

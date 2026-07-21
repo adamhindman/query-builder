@@ -197,6 +197,12 @@ export const PROPERTIES: Property[] = [
     kind: 'range',
   },
   {
+    id: 'enrollmentDate',
+    label: 'Enrollment Date',
+    category: 'Study & Cohort Design',
+    kind: 'date',
+  },
+  {
     id: 'familyStudyParticipant',
     label: 'Family Study Participant',
     category: 'Study & Cohort Design',
@@ -259,6 +265,15 @@ export const PROPERTIES: Property[] = [
   {
     id: 'isMultiSpecimen',
     label: 'Is Multi-Specimen',
+    category: 'Data Modality',
+    kind: 'boolean',
+  },
+  // Placeholder: not in the ELITE-47 spec — whether this file is part of a
+  // curated dataset (vs. a standalone file); the Results table's "Dataset"
+  // column shows it. Randomly assigned in `data/records.ts`.
+  {
+    id: 'isPartOfDataset',
+    label: 'Part of Dataset',
     category: 'Data Modality',
     kind: 'boolean',
   },

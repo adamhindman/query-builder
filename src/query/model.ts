@@ -14,6 +14,7 @@
  *   range   — 'between' | 'gt' | 'lt' | 'gte' | 'lte'
  *   boolean — 'is' (the Yes/No selection)
  *   text    — 'contains' | 'startsWith' | 'endsWith' | 'equals'
+ *   date    — 'on' | 'before' | 'after' | 'between'
  *   any kind — 'hasValue' | 'noValue' (a presence test on the property
  *             itself; the condition needs no value)
  *
@@ -27,8 +28,9 @@ export type Combinator = 'AND' | 'OR'
 export type EnumOp = 'any' | 'all' | 'none'
 export type RangeOp = 'between' | 'gt' | 'lt' | 'gte' | 'lte'
 export type TextOp = 'contains' | 'startsWith' | 'endsWith' | 'equals'
+export type DateOp = 'on' | 'before' | 'after' | 'between'
 export type PresenceOp = 'hasValue' | 'noValue'
-export type ConditionOp = EnumOp | RangeOp | TextOp | PresenceOp | 'is'
+export type ConditionOp = EnumOp | RangeOp | TextOp | DateOp | PresenceOp | 'is'
 
 export type Condition = {
   kind: 'condition'
@@ -46,6 +48,10 @@ export type Condition = {
   range: { min: number | null; max: number | null }
   /** Free-text value (text properties); null = unset. */
   text: string | null
+  /** Bounds (date properties), ISO `YYYY-MM-DD` strings: 'between' uses
+      both; 'on'/'after' store their value in `min`, 'before' in `max` —
+      the same min/max convention as `range`. */
+  date: { min: string | null; max: string | null }
 }
 
 /** The operator a fresh condition starts with, per property kind. */
@@ -59,6 +65,8 @@ export function defaultOpFor(kind: Property['kind']): ConditionOp {
       return 'between'
     case 'text':
       return 'contains'
+    case 'date':
+      return 'on'
   }
 }
 
@@ -93,6 +101,7 @@ export function newCondition(): Condition {
     bool: null,
     range: { min: null, max: null },
     text: null,
+    date: { min: null, max: null },
   }
 }
 
@@ -215,6 +224,7 @@ export function setProperty(
           bool: null,
           range: { min: null, max: null },
           text: null,
+          date: { min: null, max: null },
         }
       : n,
   )
@@ -235,6 +245,15 @@ export function setRange(
   max: number | null,
 ): Group {
   return update(root, condId, (n) => (n.kind === 'condition' ? { ...n, range: { min, max } } : n))
+}
+
+export function setDate(
+  root: Group,
+  condId: string,
+  min: string | null,
+  max: string | null,
+): Group {
+  return update(root, condId, (n) => (n.kind === 'condition' ? { ...n, date: { min, max } } : n))
 }
 
 export function setOp(root: Group, condId: string, op: ConditionOp): Group {
