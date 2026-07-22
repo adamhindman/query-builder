@@ -15,10 +15,6 @@ function boolCond(propertyId: string, value: boolean): Condition {
   return { ...newCondition(), propertyId, op: 'is', bool: value }
 }
 
-function rangeCond(propertyId: string, min: number | null, max: number | null): Condition {
-  return { ...newCondition(), propertyId, op: 'between', range: { min, max } }
-}
-
 /** One-sided numeric comparison: gt/gte keep their value in min, lt/lte in max. */
 function cmpCond(propertyId: string, op: 'gt' | 'gte' | 'lt' | 'lte', value: number): Condition {
   const usesMin = op === 'gt' || op === 'gte'
@@ -73,12 +69,12 @@ export const PRESETS: Preset[] = [
         boolCond('hasBiomarkerData', true),
         presenceCond('apoeGenotype', 'hasValue'),
         cmpCond('visitCode', 'gte', 2),
-        rangeCond('fieldCenterCode', 100, 400),
+        cond('fieldCenterCode', 'any', ['pittsburgh', 'sacramento', 'hagerstown']),
         dateCond('enrollmentDate', 'after', '2018-01-01'),
         group('OR', false, [
           cond('dataType', 'any', ['gene_expression', 'protein_abundance']),
           textCond('fileName', 'endsWith', '.vcf'),
-          cmpCond('fieldCenterCode', 'gt', 250),
+          cond('fieldCenterCode', 'any', ['baltimore', 'bronx', 'new_york', 'boston']),
         ]),
         group('AND', true, [
           cond('cohort', 'any', ['arivale']),
@@ -205,7 +201,7 @@ export const PRESETS: Preset[] = [
           group('AND', false, [
             cond('cohort', 'any', ['chs', 'sof']),
             presenceCond('hasCognitiveAssessment', 'hasValue'),
-            rangeCond('fieldCenterCode', 1, 15),
+            cond('fieldCenterCode', 'any', ['forsyth_county', 'jackson', 'minneapolis', 'washington_county']),
           ]),
         ]),
         group('OR', true, [

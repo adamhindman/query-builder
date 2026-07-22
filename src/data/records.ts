@@ -65,7 +65,7 @@ function genValue(property: Property, rand: () => number, index: number): Record
       if (rand() < MISSING) return null
       if (property.id === 'visitCode') return 1 + Math.floor(rand() * 5) // small visit count
       if (property.id === 'fileSizeBytes') return 1_000_000 + Math.floor(rand() * 29_999_000_000) // ~1MB–30GB
-      return 100 + Math.floor(rand() * 401) // other range properties (e.g. field center code)
+      return 100 + Math.floor(rand() * 401) // fallback for any other range property
     case 'text':
       return rand() < MISSING ? null : genFileName(rand, index)
     case 'date': {
