@@ -631,6 +631,41 @@ it, the section has its own **border + padding + radius**
 reads as its own region between the builder and the (borderless,
 edge-to-edge) Results table.
 
+- **Cross-tabulation.** Each chart's own header row has a second `<select>`
+  (`crossTabPicker`, "Select a second variable" / "× {property}") letting the user pick
+  a *second* characterizable property to break the first one down by. Given
+  one, the single-variable bar chart becomes a **grouped bar chart** — one
+  color per option of the second variable, sharing the same zero baseline
+  across every bar. **Grouped, not stacked, deliberately**: in a stacked bar
+  every segment above the bottom one sits on a non-zero baseline, which
+  makes comparing segment lengths across bars unreliable (Cleveland &
+  McGill's graphical perception research) — grouped bars keep every bar
+  measurable against the same axis.
+  - `crossTabCounts` (`characterizations.ts`) computes the two-way counts in
+    a single pass over the current matches (not one pass per option pair),
+    returning one row per primary option, each holding a same-order array
+    of per-secondary-option counts — callers index the two by position
+    rather than matching on label text.
+  - Each secondary-option series gets its own color from a small fixed
+    `CROSSTAB_PALETTE` (brand teal first, so a chart's first series always
+    reads as "the same teal as every other chart," then blue/orange/purple/
+    pink/green), cycling if there are more options than colors.
+  - **Every cross-tab cell goes through the same per-cell rounding**
+    (`approximateCountValue`) as a single-variable bar — cross-tabbing just
+    means more, smaller cells, more of which individually clamp to the
+    suppression floor. There's no additional privacy mechanism specific to
+    cross-tabs; the existing per-value rounding already covers it.
+  - **Height scales by both dimensions**, not just the primary option
+    count: each primary option's row now has to fit one bar per secondary
+    option (`rows.length * secondaryOptions.length * 24 + 110`), keeping
+    every individual bar — not just every row — a consistent ~24px,
+    matching the single-variable chart's own no-floor linear-height
+    reasoning.
+  - Limited to **two variables** on purpose: a third dimension only really
+    works as small multiples (one mini-chart per level of the third
+    variable), which gets crowded fast, and — more importantly for this
+    app — each added dimension multiplies the number of cells and shrinks
+    them, so far more would fall under the suppression threshold.
 - **The whole section is hidden while the match count is suppressed**
   (below `SUPPRESSION_THRESHOLD`, the same "<20" state as the match-count
   badge) — even though each bar is already rounded/clamped

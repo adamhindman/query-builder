@@ -590,6 +590,7 @@ body {
   margin-bottom: 1.25rem;
 }
 
+
 .builder-header h1 {
   font-size: 1.4rem;
   margin: 0;
@@ -1690,8 +1691,12 @@ select:focus-visible {
 .char-card-head {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 0.4rem;
+  margin-bottom: 0.3rem;
+}
+.char-crosstab-select {
+  font-size: 0.8rem;
 }
 .char-remove {
   border: none;
