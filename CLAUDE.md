@@ -131,6 +131,25 @@ shows live results, so the query does something, not just render.
   per group + nesting for mixed logic, group-level NOT vs. the per-condition
   "is none of", what a condition does, drag-to-reorder/move semantics, and
   the "Query Summary" sentence as the always-available plain-English check.
+  Its content lives in `main.ts`'s `openHelpModal()`, shared by the button
+  and the auto-open below rather than duplicated between them.
+- **Communicating "one AND/OR per group, nest to mix logic"** — user
+  testing found this was the single biggest usability problem in the tree,
+  so it gets reinforced a few ways, from cheapest to most involved:
+  - A **tooltip on the AND/OR pill itself** (`combinatorToggle`'s
+    `.segmented` wrapper) states the rule and the fix in one sentence.
+  - A **tooltip on "+ Condition Group"** (`addButton`'s optional third
+    `title` param, used only for this call site) names *why* you'd click
+    it — the label alone doesn't hint at that.
+  - **"Group" is called "Condition Group" everywhere a user sees it** — one
+    tester read "Group" as related to cohort/participant groupings, which
+    it isn't; it's a group *of conditions*. The "+ Condition Group" /
+    "Delete Condition Group" buttons, the AND/OR pill's and Exclude
+    toggle's tooltips, and the help modal copy all say "condition group"
+    instead of a bare "group." This is a **UI-copy-only** rename — the
+    underlying model type is still `Group` (see "State model"), and the
+    rest of this document still says "group" when describing that
+    internal concept/tree structure rather than quoting on-screen text.
 - The **Results panel** is a **paginated** table (25 rows per page, prev/next
   + "Page x of y", `RESULT_COLUMNS` in `main.ts` — a representative column
   spanning most kinds/categories, deliberately more than fit most
@@ -365,8 +384,11 @@ preserve them.
    because the pill marks where the group starts. **Nested groups' pills are a
    size step smaller** than the root's, so the root reads as the frame.
 2. **Exclude (NOT) toggle** sits next to the pill in the group header (it's a
-   group-level modifier), followed by **+ Condition**, **+ Group**, **Clear**
-   (when the group has children) and **Delete Group** (non-root only). All
+   group-level modifier), followed by **+ Condition**, **+ Condition Group**,
+   **Clear** (when the group has children) and **Delete Condition Group**
+   (non-root only) — "group" alone reads to some users as a cohort/
+   participant grouping, not a group *of conditions*, so every on-screen
+   label spells that out. All
    head-row action buttons share **one shape and weight** — 30px rounded
    rectangles (6px radius), semibold, **borderless** (a soft fill appears on
    hover; visible strokes made the row too busy) — with color signaling

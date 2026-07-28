@@ -180,10 +180,14 @@ function renderGroup(store: QueryStore, group: Group, isRoot: boolean): HTMLElem
     combinatorToggle(store, group),
     excludeToggle(store, group),
     addButton('+ Condition', () => store.update((s) => addChild(s, group.id, newCondition()))),
-    addButton('+ Group', () => store.update((s) => addChild(s, group.id, newGroup(group.combinator)))),
+    addButton(
+      '+ Condition Group',
+      () => store.update((s) => addChild(s, group.id, newGroup(group.combinator))),
+      'Nest a condition group to mix AND and OR logic with this level',
+    ),
     group.children.length > 0 &&
       textButton('Clear', () => store.update((s) => clearGroup(s, group.id))),
-    !isRoot && textButton('Delete Group', () => store.update((s) => removeNode(s, group.id))),
+    !isRoot && textButton('Delete Condition Group', () => store.update((s) => removeNode(s, group.id))),
   )
 
   const content = el(
@@ -547,7 +551,17 @@ function combinatorToggle(store: QueryStore, group: Group): HTMLElement {
       },
       value,
     )
-  return el('div', { class: 'segmented', role: 'group', 'aria-label': 'Combine with' }, make('AND'), make('OR'))
+  return el(
+    'div',
+    {
+      class: 'segmented',
+      role: 'group',
+      'aria-label': 'Combine with',
+      title: 'Applies to every condition in this group. To mix AND and OR, add a nested condition group instead.',
+    },
+    make('AND'),
+    make('OR'),
+  )
 }
 
 function excludeToggle(store: QueryStore, group: Group): HTMLElement {
@@ -558,17 +572,17 @@ function excludeToggle(store: QueryStore, group: Group): HTMLElement {
       class: `exclude-toggle${group.exclude ? ' on' : ''}`,
       dataset: { nodrag: 'true' },
       'aria-pressed': String(group.exclude),
-      title: 'Exclude records matching this group',
+      title: 'Exclude records matching this condition group',
       onclick: () => store.update((s) => toggleExclude(s, group.id)),
     },
     group.exclude ? 'Excluded (NOT)' : 'Exclude (NOT)',
   )
 }
 
-function addButton(label: string, onClick: () => void): HTMLElement {
+function addButton(label: string, onClick: () => void, title?: string): HTMLElement {
   return el(
     'button',
-    { type: 'button', class: 'add-btn', dataset: { nodrag: 'true' }, onclick: onClick },
+    { type: 'button', class: 'add-btn', dataset: { nodrag: 'true' }, title, onclick: onClick },
     label,
   )
 }

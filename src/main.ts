@@ -338,25 +338,28 @@ document.addEventListener('keydown', (e) => {
 // The header/tree/summary make up the query builder proper; the results
 // panel below is a separate feature and stays visible in both the default
 // "browse" view and Query Builder mode.
+function openHelpModal(): void {
+  infoModal(
+    'How the query builder works',
+    el(
+      'ul',
+      { class: 'modal-list' },
+      el('li', {}, el('strong', {}, 'Condition groups'), ' combine their items with one AND or OR — mixed logic is expressed by nesting a condition group, not by mixing operators in one list.'),
+      el('li', {}, 'Add ', el('strong', {}, 'NOT'), ' to a condition group to exclude everything inside it; for a single condition, use the "is none of" operator instead.'),
+      el('li', {}, 'A ', el('strong', {}, 'condition'), ' filters one property — click its property, operator, or values to change them.'),
+      el('li', {}, el('strong', {}, 'Drag'), ' rows to reorder them or move them into a different condition group; moving into a different condition group changes the logic.'),
+      el('li', {}, 'The ', el('strong', {}, 'Query Summary'), ' sentence below the tree always shows the whole query in plain English.'),
+    ),
+  )
+}
+
 const qbHelpBtn = el(
   'button',
   {
     type: 'button',
     class: 'qb-help-btn',
     'aria-label': 'How the query builder works',
-    onclick: () =>
-      infoModal(
-        'How the query builder works',
-        el(
-          'ul',
-          { class: 'modal-list' },
-          el('li', {}, el('strong', {}, 'Groups'), ' combine their items with one AND or OR — mixed logic is expressed by nesting a group, not by mixing operators in one list.'),
-          el('li', {}, 'Add ', el('strong', {}, 'NOT'), ' to a group to exclude everything inside it; for a single condition, use the "is none of" operator instead.'),
-          el('li', {}, 'A ', el('strong', {}, 'condition'), ' filters one property — click its property, operator, or values to change them.'),
-          el('li', {}, el('strong', {}, 'Drag'), ' rows to reorder them or move them into a different group; moving into a different group changes the logic.'),
-          el('li', {}, 'The ', el('strong', {}, '"Reads as"'), ' sentence below the tree always shows the whole query in plain English.'),
-        ),
-      ),
+    onclick: openHelpModal,
   },
   '?',
 )
