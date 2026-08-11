@@ -154,7 +154,7 @@ function variablePicker(onPick: (propertyId: string) => void): {
 
   function refresh(isAdded: (id: string) => boolean): void {
     select.replaceChildren(
-      el('option', { value: '', disabled: true, selected: true }, 'Add a characterization…'),
+      el('option', { value: '', disabled: true, selected: true }, 'Show distribution of…'),
       ...CHARACTERIZABLE_PROPERTIES.filter((p) => !isAdded(p.id)).map((p) => el('option', { value: p.id }, p.label)),
     )
   }
@@ -291,7 +291,7 @@ export function renderCharacterizations(store: QueryStore): HTMLElement {
     el(
       'div',
       { class: 'char-head' },
-      el('h3', {}, 'Characterizations'),
+      el('h3', {}, 'Results Distribution'),
       el('div', { class: 'char-head-controls' }, why, picker.el),
     ),
     emptyNote,

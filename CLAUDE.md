@@ -190,7 +190,7 @@ shows live results, so the query does something, not just render.
   small orange **"Rounded"** pill next to it (`.results-rounded-badge`,
   reusing the same `--or`/`--or-soft` orange as the low-count badge). To the
   count badge's **left**, outside its tinted background (same treatment as
-  the Characterizations "Why can't I see the counts?" link), a **"How this
+  the Results Distribution "Why can't I see the counts?" link), a **"How this
   number was computed" disclosure link** (`.results-count-disclosure`,
   `.results-count-wrap` holds both) opens the info modal with an explanation —
   currently **placeholder copy** ("Insert methodology here...") to be
@@ -207,7 +207,7 @@ shows live results, so the query does something, not just render.
   property is already bin-valued, so this may just *be* `age`) and
   "Diagnosis Macro" (a coarser grouping of `diagnosis` that isn't modeled
   yet). Per-value result counts for these fields (and any other enum/boolean
-  property) **are** now shown, via the Characterizations bar charts below —
+  property) **are** now shown, via the Results Distribution bar charts below —
   and are rounded the same way the backend design doc's `FacetPostProcessor`
   framework (ROUNDING / NOISE, §4.5–4.7) protects facet statistics, using
   this app's own `query/rounding.ts` rather than a per-field allowlist (every
@@ -611,14 +611,14 @@ query's logic** (different combinator / exclude / nesting).
 
 ---
 
-## Characterizations
+## Results Distribution
 
 A section (`ui/characterizations.ts`) between the query builder and the
 Results panel: bar charts breaking the **current query's matching cohort**
 down by a variable the user picks — one bar per option of that variable
 (e.g. a Sex chart with a Male bar and a Female bar). Empty by default; users
-add one chart at a time via a plain **`<select>` dropdown** ("Add a
-characterization…") listing every not-yet-added characterizable property,
+add one chart at a time via a plain **`<select>` dropdown** ("Show
+distribution of…") listing every not-yet-added characterizable property,
 rebuilt (`picker.refresh`) after every add/remove so a property already
 charted drops out of the list. Only **enum** and **boolean** properties are
 offered — they're the only kinds with a fixed, discrete set of "options" a
