@@ -913,10 +913,16 @@ to compile this one component.
   interactivity. Lower `z-index` than the batch-selection toolbar on
   purpose, so the two don't visually fight over the same corner if both
   happen to be showing at once.
-- **Preset selector** ("Load an example…") and **Clear all**: design/testing
-  aids to populate or reset the builder. Not a product feature — tucked into
-  a hidden floating **dev-tools menu** (⌘/Ctrl+\\) rather than shown in the
-  main header, so they're out of the way but still reachable while testing.
+- **Clear all**: a design/testing aid to reset the builder. Not a product
+  feature — tucked into a hidden floating **dev-tools menu** (⌘/Ctrl+\\)
+  rather than shown in the main header, so it's out of the way but still
+  reachable while testing.
+- **Try a sample query** (`.example-queries`, `main.ts`): a static, always-visible
+  section directly under the "Cohort Builder" heading, above "Query Summary".
+  Unlike Clear all, this is not hidden dev chrome — the preset dropdown
+  ("Choose a sample query", same `presetSelect`/`PRESETS` wiring as before)
+  is a normal, discoverable part of the page. Styled like `.summary`'s card
+  (border/padding/radius) so it reads as one of the builder's own sections.
 - **Animal mock data** (Class, Habitat, Diet, …): placeholder content to
   exercise the UI. Real properties/values come from the product's data source;
   only the *schema shape* above is meaningful.

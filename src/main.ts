@@ -303,6 +303,17 @@ const presetSelect = el(
   ...PRESETS.map((p) => el('option', { value: p.id }, p.label)),
 )
 
+// A static, always-visible section under the "Cohort Builder" heading — not
+// a floating dev-tools popup — since choosing a starter query is a normal
+// part of using the builder, unlike "Clear all" below.
+const exampleQueries = el(
+  'section',
+  { class: 'example-queries' },
+  el('h2', {}, 'Try a sample query'),
+  el('p', { class: 'example-queries-hint' }, 'Not sure where to start? Load a sample query below to see how conditions and groups work.'),
+  presetSelect,
+)
+
 const clearBtn = el(
   'button',
   {
@@ -313,14 +324,12 @@ const clearBtn = el(
   'Clear all',
 )
 
-// The preset loader and Clear-all are dev/testing aids, kept off the main
-// header. They live in a floating menu that's hidden by default; ⌘/Ctrl+\
-// toggles it on and off.
+// Clear-all is a dev/testing aid, kept off the main header. It lives in a
+// floating menu that's hidden by default; ⌘/Ctrl+\ toggles it on and off.
 const devMenu = el(
   'div',
   { class: 'dev-menu', hidden: true },
   el('span', { class: 'dev-menu-title' }, 'Dev tools'),
-  presetSelect,
   clearBtn,
 )
 let devMenuOpen = false
@@ -373,6 +382,7 @@ const builderTop = el(
     el('div', { class: 'builder-title-group' }, el('h1', {}, 'Cohort Builder'), qbHelpBtn),
     resultsCountWrap,
   ),
+  exampleQueries,
   el(
     'section',
     { class: 'summary' },

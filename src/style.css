@@ -1578,6 +1578,34 @@ select:focus-visible {
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
+
+/* Static "Example queries" section under the Cohort Builder heading — same
+   card treatment as .summary, so picking a starter query reads as a normal
+   part of the page rather than a floating dev aid. */
+.example-queries {
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.example-queries h2 {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  font-weight: 700;
+}
+.example-queries-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
 .summary-head {
   display: flex;
   align-items: center;
@@ -2029,7 +2057,7 @@ select:focus-visible {
   margin-bottom: 0.15rem;
 }
 
-/* Floating dev-tools menu (preset loader + Clear all). Hidden by default;
+/* Floating dev-tools menu (Clear all). Hidden by default;
    ⌘/Ctrl+\ toggles it. Pinned near the top-right, above the app. */
 .dev-menu {
   position: fixed;
