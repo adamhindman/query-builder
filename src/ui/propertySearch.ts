@@ -3,11 +3,8 @@ import { PROPERTIES } from '../data/properties'
 import type { Property, PropertyValue } from '../data/schema'
 
 /**
- * Shared "search properties or values" logic, used by both the left sidebar
- * (`ui/sidebar.ts`) and the in-condition property picker
- * (`ui/render.ts`'s property dropdown) — same matching rules, same
- * highlighting, so a value hit looks and behaves the same wherever it's
- * found.
+ * "Search properties or values" logic for the in-condition property picker
+ * (`ui/render.ts`'s property dropdown).
  */
 
 export type FacetView = {

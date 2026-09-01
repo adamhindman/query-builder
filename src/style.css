@@ -258,6 +258,13 @@ body {
   font-weight: 600;
   cursor: pointer;
 }
+/* `display: inline-flex` above ties with the UA `[hidden] { display: none }`
+   rule at equal specificity, so author styles win and silently un-hide the
+   button — same gotcha `.toolbar-qb-btn[hidden]` below has an explicit
+   override for. */
+.toolbar-hide[hidden] {
+  display: none;
+}
 .toolbar-spacer {
   flex: 1;
 }
@@ -289,9 +296,10 @@ body {
   display: none;
 }
 
-/* ---------- Facet sidebar ---------- */
+/* ---------- Facet sidebar mockup shell ---------- */
 
-/* Sticky full-height panel; the search stays put and only the list scrolls. */
+/* Sticky full-height panel; shared shell used by the facet-sidebar mockup
+   (ui/facetSidebar.ts). */
 .sidebar {
   flex: none;
   width: 280px;
@@ -305,275 +313,9 @@ body {
 }
 /* `display: flex` above beats the UA `[hidden] { display: none }` rule at
    equal specificity (author styles win), so the JS `.hidden = true` toggle
-   between the two sidebars needs an explicit override here. */
+   between browse and builder mode needs an explicit override here. */
 .sidebar[hidden] {
   display: none;
-}
-
-.sidebar-top {
-  padding: 1rem 1rem 0.75rem;
-  border-bottom: 1px solid var(--line);
-}
-
-/* Anchors the ✕ clear button inside the input. */
-.search-wrap {
-  position: relative;
-}
-
-.search-input {
-  font: inherit;
-  font-size: 0.88rem;
-  width: 100%;
-  height: 36px;
-  /* Left clears the search icon, right clears the ✕ button. */
-  padding: 0 1.8rem 0 2.1rem;
-  border: 1px solid var(--gray-300);
-  border-radius: 8px;
-  color: var(--ink);
-  background: var(--surface);
-}
-.search-input::placeholder {
-  color: var(--ink-faint);
-}
-.search-input:hover {
-  border-color: var(--gray-500);
-}
-.search-input:focus-visible {
-  outline: 2px solid var(--and);
-  outline-offset: 1px;
-  border-color: var(--and);
-}
-/* Magnifying-glass icon inside the input's left edge. */
-.search-icon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: inline-flex;
-  color: var(--ink-faint);
-  pointer-events: none;
-}
-
-.sidebar-hint {
-  margin: 0.5rem 0 0;
-  font-size: 0.75rem;
-  line-height: 1.45;
-  color: var(--ink-faint);
-}
-
-.sidebar-list-heading {
-  margin: 0.9rem 1rem 0.2rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--ink-faint);
-}
-
-/* Category group headings inside the property list — a step quieter than
-   .sidebar-list-heading so the "Select a property to add" instruction still
-   reads as the primary label. */
-.sidebar-category {
-  margin: 0.9rem 0.5rem 0.25rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--line);
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--ink-faint);
-}
-.sidebar-category:first-child {
-  margin-top: 0.2rem;
-  padding-top: 0;
-  border-top: none;
-}
-
-/* Narrow side padding — the rows' own padding supplies the text inset, so
-   their hover/in-use fills span nearly the sidebar's full width and the row
-   text lines up with the search box above (0.5rem + 0.5rem = 1rem). */
-.sidebar-list {
-  /* Never scroll horizontally — anything wider (e.g. a tooltip's overhang)
-     is clipped, and label text wraps instead. The sidebar itself is static
-     now, so there's no vertical scroll here either — the whole page scrolls
-     together. */
-  overflow-x: hidden;
-  padding: 0.5rem 0.5rem 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-
-.sidebar-empty {
-  color: var(--ink-faint);
-  font-size: 0.85rem;
-  font-style: italic;
-  padding: 0.75rem 0.15rem;
-}
-
-/* Property row — a button that adds a condition for the property (value
-   picked in the builder). */
-.facet-row {
-  border: none;
-  background: none;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0.5rem;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--ink);
-  text-align: left;
-  cursor: pointer;
-}
-.facet-row:hover {
-  background: var(--blue-50);
-}
-.facet-row:hover .facet-label {
-  color: var(--and);
-}
-/* Properties used by a condition in the current query: filled grey row —
-   quiet presence marker; blue stays for hover/additive affordances. */
-.facet-row.in-use {
-  background: var(--gray-100);
-}
-.facet-row.in-use .facet-label {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-/* Right edge of a row shows exactly one thing at a time, flush right:
-   not in use →  (nothing)   hover: "+" add affordance
-   in use     →  checkmark   hover: "−" remove affordance                  */
-
-/* Checkmark: the resting "this property is in the query" indicator. */
-.facet-check {
-  flex: none;
-  margin-left: auto;
-  display: none;
-  align-items: center;
-  color: var(--ink-soft);
-}
-.facet-row.in-use .facet-check {
-  display: inline-flex;
-}
-.facet-row.in-use:hover .facet-check {
-  display: none;
-}
-
-/* "+"/"−" affordance, revealed on row hover. It's a span, not a nested
-   button — the whole row already is the button (the click handler routes by
-   what was hit). */
-.facet-add {
-  flex: none;
-  margin-left: auto;
-  position: relative;
-  width: 24px;
-  height: 17px;
-  display: inline-flex;
-  align-items: baseline;
-  justify-content: center;
-  border: 1px solid var(--and);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--and);
-  font-size: 0.85rem;
-  line-height: 1;
-  opacity: 0;
-}
-.facet-row:hover .facet-add {
-  opacity: 1;
-}
-/* In-use rows: hide the affordance until hover (the checkmark holds the
-   spot), and it reads as removal — red. */
-.facet-row.in-use .facet-add {
-  display: none;
-  border-color: var(--exclude);
-  color: var(--exclude);
-}
-.facet-row.in-use:hover .facet-add {
-  display: inline-flex;
-}
-/* Shared dark tooltip for sidebar affordances, driven by data-tip (replaces
-   native titles). Hover the element itself to reveal it. */
-.sidebar [data-tip] {
-  position: relative;
-}
-.sidebar [data-tip]::after {
-  content: attr(data-tip);
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 0;
-  z-index: 10;
-  background: var(--gray-950);
-  color: #fff;
-  font-size: 0.72rem;
-  font-weight: 500;
-  padding: 0.3rem 0.55rem;
-  border-radius: 5px;
-  /* Wrap rather than overflow the narrow sidebar. */
-  width: max-content;
-  max-width: 220px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.1s 0.15s;
-}
-.sidebar [data-tip]:hover::after {
-  opacity: 1;
-}
-/* The "+" sits at the row's right edge — anchor its tooltip there. (Must
-   out-rank the shared [data-tip] rule above, hence the compound selector.) */
-.sidebar .facet-add[data-tip]::after {
-  left: auto;
-  right: 0;
-}
-/* While a row is being dragged: dim it (matching the tree's drag style) and
-   keep the tooltip out of the drag image. */
-.facet-row.dragging {
-  opacity: 0.45;
-}
-.facet-row.dragging .facet-add::after {
-  display: none;
-}
-
-/* Values whose labels match the search: clickable pills under their property,
-   adding a ready-made condition. Amber = "search hit", echoed by the <mark>
-   on the matched substring. */
-.facet-hits {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 0.05rem 0.5rem 0.3rem;
-}
-.facet-hit {
-  border: 1px solid var(--yellow);
-  background: var(--yellow-bg);
-  color: var(--ink);
-  border-radius: 999px;
-  padding: 0.12rem 0.55rem;
-  font-size: 0.72rem;
-  line-height: 1.3;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.facet-hit:hover {
-  border-color: var(--yellow-dark);
-  color: var(--yellow-dark);
-}
-
-/* Matched substrings, in property labels and hit pills alike. */
-.sidebar mark {
-  background: var(--yellow-bg);
-  color: inherit;
-  font-weight: 700;
-  border-radius: 3px;
-  padding: 0 1px;
-}
-/* Inside a hit pill the light yellow would vanish — step up to full yellow. */
-.facet-hit mark {
-  background: var(--yellow);
 }
 
 /* The tree is sized by its container, not the viewport — the host page can
@@ -1258,8 +1000,7 @@ summary.inline-select:hover {
   color: var(--ink);
 }
 /* The custom ✕ replaces WebKit's native search-cancel icon. */
-.menu-filter::-webkit-search-cancel-button,
-.search-input::-webkit-search-cancel-button {
+.menu-filter::-webkit-search-cancel-button {
   -webkit-appearance: none;
 }
 /* Clear icon inside the input's right edge (the sticky bar anchors it). */
@@ -1907,7 +1648,8 @@ select:focus-visible {
   color: var(--ink-soft);
 }
 
-/* Pager row below the table. */
+/* Pager row below the table — a sibling of .results-table-wrap, not nested
+   inside it, so it stays put when the table scrolls horizontally. */
 .results-pager {
   display: flex;
   align-items: center;
@@ -1915,6 +1657,12 @@ select:focus-visible {
   margin-top: 0.7rem;
   font-size: 0.78rem;
   color: var(--ink-faint);
+}
+/* `display: flex` above ties with the UA `[hidden] { display: none }` rule
+   at equal specificity, so author styles win and silently un-hide it —
+   same gotcha `.toolbar-qb-btn[hidden]` has an explicit override for. */
+.results-pager[hidden] {
+  display: none;
 }
 .results-pager .spacer {
   flex: 1;

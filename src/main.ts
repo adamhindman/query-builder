@@ -4,7 +4,6 @@ import { QueryStore } from './query/store'
 import { defaultQuery, usedPropertyIds } from './query/model'
 import { PRESETS, getPreset } from './query/presets'
 import { renderTree, alignBrackets } from './ui/render'
-import { renderSidebar } from './ui/sidebar'
 import { renderFacetSidebar } from './ui/facetSidebar'
 import { confirmModal, modalRoot, infoModal, infoModalRoot } from './ui/modal'
 import { summarize } from './query/summary'
@@ -97,6 +96,9 @@ const resultsCountWrap = el(
   resultsCount,
 )
 const resultsTable = el('div', { class: 'results-table-wrap' })
+// Sibling of resultsTable, not a child — the pager must stay outside the
+// horizontally-scrolling wrap so it doesn't scroll along with wide tables.
+const resultsPager = el('div', { class: 'results-pager' })
 
 // Live count in the static Explore toolbar (markup lives in index.html).
 const toolbarCount = document.querySelector<HTMLElement>('.toolbar-count')
@@ -419,17 +421,15 @@ const shell = el(
     { class: 'results' },
     el('div', { class: 'results-head' }, el('h3', {}, 'Results')),
     resultsTable,
+    resultsPager,
   ),
 )
 
-// Two mutually-exclusive sidebars: the ELITE-portal-style faceted-filter
-// mockup (default "browse" view — a static placeholder, no wiring to the
-// query builder or results) and the real query builder sidebar. The
+// The ELITE-portal-style faceted-filter mockup (default "browse" view — a
+// static placeholder, no wiring to the query builder or results). The
 // "Query Builder" toolbar button (static markup in index.html) swaps between
-// them and reveals/hides the query builder proper; the results panel is
-// unaffected either way.
+// it and the query builder proper; the results panel is unaffected either way.
 const facetSidebar = renderFacetSidebar()
-const querySidebar = renderSidebar(store)
 
 type ViewMode = 'browse' | 'builder'
 let mode: ViewMode = 'builder'
@@ -441,11 +441,14 @@ let lastBelowThreshold = false
 
 const qbToggleBtn = document.querySelector<HTMLButtonElement>('.toolbar-qb-btn')
 const qbToggleLabel = document.querySelector<HTMLElement>('.toolbar-qb-label')
+const toolbarHideBtn = document.querySelector<HTMLButtonElement>('.toolbar-hide')
 
 function applyMode(): void {
   facetSidebar.hidden = mode !== 'browse'
-  querySidebar.hidden = mode !== 'builder'
   builderMain.hidden = mode !== 'builder'
+  // "Hide Filters" only makes sense in the facet-mockup browse view — there's
+  // no filter sidebar to hide while the Query Builder is in view.
+  if (toolbarHideBtn) toolbarHideBtn.hidden = mode === 'builder'
   updateCharacterizationsVisibility()
   qbToggleBtn?.classList.toggle('active', mode === 'builder')
   if (qbToggleLabel) qbToggleLabel.textContent = mode === 'builder' ? 'Exit Query Builder' : 'Query Builder'
@@ -477,7 +480,7 @@ qbToggleBtn?.addEventListener('click', async () => {
 })
 
 app.replaceChildren(
-  el('div', { class: 'app-layout' }, facetSidebar, querySidebar, shell),
+  el('div', { class: 'app-layout' }, facetSidebar, shell),
   devMenu,
   modalRoot(),
   infoModalRoot(),
@@ -550,6 +553,8 @@ function renderResults(): void {
   if (toolbarCount) toolbarCount.textContent = displayCount
 
   clear(resultsTable)
+  clear(resultsPager)
+  resultsPager.hidden = true
   if (matches.length === 0) {
     resultsPage = 0
     resultsTable.appendChild(el('p', { class: 'results-empty' }, 'No participants match this query.'))
@@ -573,6 +578,7 @@ function renderResults(): void {
     )
     return
   }
+  resultsPager.hidden = false
 
   const pageCount = Math.ceil(matches.length / PAGE_SIZE)
   resultsPage = Math.min(Math.max(resultsPage, 0), pageCount - 1) // clamp to range
@@ -635,37 +641,33 @@ function renderResults(): void {
     resultsPage = page
     renderResults()
   }
-  resultsTable.appendChild(
+  resultsPager.append(
     el(
-      'div',
-      { class: 'results-pager' },
-      el(
-        'span',
-        { class: 'results-range' },
-        `Showing ${(start + 1).toLocaleString()}–${(start + shown.length).toLocaleString()}`,
-      ),
-      el('span', { class: 'spacer' }),
-      el(
-        'button',
-        {
-          type: 'button',
-          class: 'pager-btn',
-          disabled: resultsPage === 0,
-          onclick: () => goto(resultsPage - 1),
-        },
-        '‹ Prev',
-      ),
-      el('span', { class: 'pager-status' }, `Page ${resultsPage + 1} of ${pageCount.toLocaleString()}`),
-      el(
-        'button',
-        {
-          type: 'button',
-          class: 'pager-btn',
-          disabled: resultsPage >= pageCount - 1,
-          onclick: () => goto(resultsPage + 1),
-        },
-        'Next ›',
-      ),
+      'span',
+      { class: 'results-range' },
+      `Showing ${(start + 1).toLocaleString()}–${(start + shown.length).toLocaleString()}`,
+    ),
+    el('span', { class: 'spacer' }),
+    el(
+      'button',
+      {
+        type: 'button',
+        class: 'pager-btn',
+        disabled: resultsPage === 0,
+        onclick: () => goto(resultsPage - 1),
+      },
+      '‹ Prev',
+    ),
+    el('span', { class: 'pager-status' }, `Page ${resultsPage + 1} of ${pageCount.toLocaleString()}`),
+    el(
+      'button',
+      {
+        type: 'button',
+        class: 'pager-btn',
+        disabled: resultsPage >= pageCount - 1,
+        onclick: () => goto(resultsPage + 1),
+      },
+      'Next ›',
     ),
   )
 }
