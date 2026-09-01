@@ -15,8 +15,9 @@ conditions, nested to any depth — and shows two live views of it as you edit:
 - A **results table**, run against an in-memory mock dataset of ~25,000
   data-file records, so the query actually filters something.
 
-A left sidebar lists every queryable property; a toolbar button switches
-between that view and a non-functional mockup of a default "browse" faceted
+Properties are picked from a filterable dropdown inline on each condition —
+there's no standalone property sidebar. A toolbar button switches between
+the query builder and a non-functional mockup of a default "browse" faceted
 sidebar (styled after eliteportal.synapse.org), for demoing both states of
 the eventual product page.
 
@@ -54,6 +55,41 @@ all placeholder scaffolding to make the prototype demonstrable — see
 
 Most recent first; not exhaustive back to project start, but covers ongoing
 work.
+
+**Results table pager & toolbar fixes**
+- The results-table pager is now a persistent element outside the
+  horizontally-scrolling table wrap, so it stays fixed in place instead of
+  scrolling along with wide tables.
+- The static "Hide Filters" toolbar control (belongs to the browse/facet
+  mockup) is now hidden while Query Builder mode is active.
+
+**Property sidebar removed**
+- Deleted the real, functional property sidebar (`ui/sidebar.ts`) and its
+  sidebar-only drag channel (`ui/dnd.ts`). Property browsing/search now
+  happens solely through the in-condition property picker dropdown, which
+  already had the same filter/highlight logic. The non-functional
+  browse-mode facet sidebar mockup is unaffected.
+
+**File-level schema alignment**
+- Reworked several properties to match a real file-level data spec:
+  `age` is now a plain numeric range instead of a binned enum; `studyCode`
+  renamed to `studyKey`; the boolean `ethnicity` property was dropped in
+  favor of renaming the `ethnicGroupCode` enum to `ethnicity`.
+- Added a new **Biospecimen** property category (Specimen Type, Organ,
+  Tissue, Nucleic Acid Source, Cell Type, Is Post-Mortem).
+- The results table now shows only genuine file/specimen-level columns,
+  dropping individual-level facts that had crept in (diagnosis, age,
+  enrollment date, APOE genotype, has-biomarker-data, country code, study
+  key, cohort, sex, family-study-participant, is-post-mortem).
+
+**Sample query picker moved into the page**
+- The preset-query dropdown moved out of the hidden dev-tools popup into a
+  static "Try a sample query" section under the "Cohort Builder" heading,
+  with a short onboarding hint. "Clear all" stays dev-only.
+- The "Every condition type" preset now has exactly one condition per
+  property kind (no repeats) plus a long-enum example (`studyKey`, 50+
+  values), and lives in its own "Development only" `<optgroup>` at the
+  bottom of the dropdown.
 
 **Characterizations**
 - New section between the query builder and the results table: bar charts

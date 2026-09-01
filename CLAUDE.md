@@ -822,9 +822,8 @@ to compile this one component.
   (`propertyPickerMenu` in `ui/render.ts`, via `ui/propertySearch.ts`'s
   shared matching/highlight logic). This dropdown is the only place in the
   app to browse/search properties — there is no standalone property
-  sidebar. A value hit shows the
-  matching values as clickable amber pills under their property (substring
-  highlighted, `<mark>` treatment); clicking one sets
+  sidebar. A value hit shows the matching values as clickable amber pills
+  under their property (substring highlighted, `<mark>` treatment); clicking one sets
   *both* the property and that value on the condition in a single action —
   `setProperty` then `toggleValue`, composed directly rather than round-
   tripping through two store updates. Clicking the property row itself (not
