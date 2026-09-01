@@ -24,9 +24,9 @@ const DUMMY_STUDY_CODES: PropertyValue[] = Array.from({ length: 103 }, (_, i) =>
  *
  * Each property carries a `category` (Demographic & Clinical, Study & Cohort
  * Design, Biospecimen, Data Modality, Assessment Availability, Genetic
- * Stratification, Comorbidity) that groups the sidebar (`ui/sidebar.ts`). The array's own
- * order still matches those groupings — the section comments below mark the
- * same boundaries the `category` field encodes, kept for readability.
+ * Stratification, Comorbidity). `PROPERTIES`'s own order matches those
+ * groupings — the section comments below mark the same boundaries the
+ * `category` field encodes, kept for readability.
  */
 export const PROPERTIES: Property[] = [
   // ── Demographic & Clinical ──────────────────────────────────────────

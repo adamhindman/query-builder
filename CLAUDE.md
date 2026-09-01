@@ -154,8 +154,8 @@ shows live results, so the query does something, not just render.
   + "Page x of y", `RESULT_COLUMNS` in `main.ts` — a representative column
   spanning most kinds/categories, deliberately more than fit most
   viewports) with no border/padding around its container, spanning the full
-  remaining browser width to the right of the sidebar, with a 40px margin on
-  all sides. Its header row is styled after eliteportal.synapse.org's
+  browser width, with a 40px margin on all sides. Its header row is styled
+  after eliteportal.synapse.org's
   results table: a light-gray header band, a leading checkbox column, a
   decorative sort-glyph in every header cell plus a help icon on ID and a
   filter icon on Specimen Type, and numeric columns right-aligned with tabular
@@ -165,7 +165,10 @@ shows live results, so the query does something, not just render.
   (`overflow-x: auto`) once the columns don't fit, rather than the page body
   scrolling or the columns being squeezed — `.results-table` uses
   `width: max-content; min-width: 100%` (not a plain `100%`) specifically so
-  it's free to grow past its container instead of always matching it. Page
+  it's free to grow past its container instead of always matching it. The
+  pager (`.results-pager`) is a **separate persistent element, a sibling of
+  `.results-table-wrap`** rather than nested inside it — so it stays fixed
+  in place and doesn't scroll along with a wide table. Page
   index is local UI state, reset to the first page on any query change
   (pager clicks re-render just the results and keep their page). It
   re-renders on every store change, alongside the summary.
@@ -302,11 +305,13 @@ type Property =
 
 Every property carries a **`category`** (Demographic & Clinical, Study &
 Cohort Design, Biospecimen, Data Modality, Assessment Availability, Genetic
-Stratification, Comorbidity) that groups the sidebar. `PROPERTIES`'s own
-array order matches those groupings; the section comments in the data file
-mark the same boundaries the `category` field encodes, kept for
-readability. (An earlier version of this document said properties were
-flat with no categories — that was wrong; ELITE-47 does have them.)
+Stratification, Comorbidity). `PROPERTIES`'s own array order matches those
+groupings; the section comments in the data file mark the same boundaries
+the `category` field encodes, kept for readability. It's not currently read
+by any UI code (there is no property sidebar to group — see "Not part of
+the product" for the browse-mode facet mockup, which doesn't use it
+either); it's part of the data contract in case a future property browser
+needs it again.
 
 - **enum** — multi-select from fixed values, with the any/all/none operator
   (only `any` is currently exposed in the UI — see the operator-set bullet
@@ -520,92 +525,12 @@ preserve them.
 
 ---
 
-## Facet sidebar
-
-This section describes the **real, functional** property sidebar
-(`ui/sidebar.ts`) that sits alongside the query builder. It's a different
-thing from the **faceted-filter sidebar mockup** (`ui/facetSidebar.ts`,
-described under "Not part of the product") — that one is a non-functional
-placeholder shown in the "browse" view, reached via the "Query Builder"
-toolbar button's toggle (the app **opens in Query Builder mode** by
-default); this one is the always-live sidebar shown while in that mode.
-
-A **left sidebar** lists every **property** as a selectable row, grouped
-under its **`category`** heading (Demographic & Clinical, Study & Cohort
-Design, Data Modality, Assessment Availability, Genetic Stratification,
-Comorbidity — see `data/properties.ts`). Its purpose is to splay the
-properties out where they can be seen, instead of hiding them inside the
-builder's dropdown selector — it is **not** for selecting values; values are
-always chosen in the builder.
-
-- Each **property row** is a button — clicking it appends a condition for
-  that property, **with no value chosen yet**, to the **end of the root
-  group**. The value is then picked in the builder. (No kind/type badge on
-  the row — just the label.) Hovering a row tints it **light blue** (blue/50)
-  and reveals a **"+" affordance** at the row's right edge — a small
-  blue-outlined circle (a span, not a nested button; the row itself is the
-  button) with a custom dark tooltip below it ("Add a condition on X") via
-  CSS `::after`, replacing any native title.
-- **Category headings** (`.sidebar-category`, e.g. "DEMOGRAPHIC & CLINICAL")
-  sit above each group's rows — small, uppercase, quieter than the "Select a
-  property to add" heading below so that instruction still reads as the
-  primary label. Rendered by walking the filtered/searched rows (which stay
-  in `PROPERTIES`'s own order, itself already grouped by category) and
-  inserting a heading whenever a row's `category` differs from the previous
-  row's — so headings appear only for categories that still have at least
-  one matching row once a search narrows the list, and drop out entirely
-  otherwise.
-- A small uppercase **"Select a property to add"** heading
-  (`.sidebar-list-heading`) sits above the property list — a one-line label
-  naming what clicking a row does, since nothing else in the sidebar states
-  that up front.
-- **Search input** at the top filters the rows by property label *or* value
-  label (matching a value surfaces its property). The helper text under the
-  search box is a short, **generic** one-liner ("Click a property below to
-  add it to the query builder.") — it names no example values from the
-  schema, and describes what clicking does rather than repeating the search
-  box's own placeholder text. Matched substrings are **highlighted**
-  (`<mark>`, amber) in property labels. When the match is on a **value**, that
-  value appears as a clickable **amber pill** under its property — clicking it
-  appends a ready-made condition (property + that value, `is any of`) to the
-  end of the root group. This is the only place the sidebar shows values, and
-  only while they match the search. Empty categories drop out; the search
-  stays fixed while the list scrolls.
-- New conditions land in the root group by default; the user then **drags
-  them into the proper nested group** — this is why drag-and-drop is enabled.
-- Property rows are also **draggable straight into the tree**: dropping one
-  on any drop zone creates the new condition at exactly that position (one
-  gesture instead of click-then-drag). The in-flight property id crosses the
-  sidebar↔tree boundary via a tiny **drag channel module** (`ui/dnd.ts`) —
-  needed because HTML5 DnD hides the payload during `dragover`, and kept as
-  an explicit shared channel because the sidebar and tree are independent
-  components (in a React port: separate components + a context/store). The
-  tree's own node-reorder drag state stays private to the render module.
-- Properties **used by any condition in the current query** get an "in use"
-  highlight (**grey** — gray/100 fill + ink semibold label; a quiet presence
-  marker, keeping blue for hover/additive affordances), and their label shows
-  a tooltip ("Used in the current query") on hover, so the sidebar doubles as
-  an at-a-glance index of what the query touches. Kept current via a store
-  subscription that only toggles class/`data-tip`/glyph on the rows.
-- The **right edge of a row shows exactly one thing at a time**: not in use →
-  nothing, with a blue "+" on hover (adds); in use → a small **checkmark**
-  (SVG, ink-soft), swapped on hover for a **red "−"** that **removes every
-  condition on that property** from the whole tree (if that empties the tree,
-  one blank condition is left — the "never empty" rule). Clicking the row
-  body always adds, even when in use (a second condition on the same property
-  is legitimate); only the "−" removes.
-- The sidebar is persistent chrome: it never re-renders on store changes
-  (the usage highlight above is a class toggle, not a re-render); only its
-  list region re-renders as the filter text changes (so the search input
-  never loses focus).
-
 ## Drag-and-drop
 
 Full drag-to-reorder is implemented and **enabled** (`DND_ENABLED` in the
 render module): a drag handle per row, thin drop zones between children, and
-drop targets scoped per group. It exists so conditions added from the sidebar
-(which land at the end of the root group) can be moved into their proper
-nested group.
+drop targets scoped per group. It lets a condition or nested group be moved
+into a different group without rebuilding it from scratch.
 
 Semantics to keep in mind: **reordering within a group is purely cosmetic**
 (AND/OR are commutative), but **dropping into a different group changes the
@@ -729,13 +654,21 @@ when rebuilding, like the preset selector.
   green action icons. Its title reads "SUBJECTS MATCHED (n)" where **n is the
   live match count** — one of two non-static bits of chrome: `main.ts` updates
   the `.toolbar-count` span (which lives in `index.html`) inside
-  `renderResults`.
+  `renderResults`. **"Hide Filters" (`.toolbar-hide`) is hidden while in
+  Query Builder mode** — a third non-static bit of chrome, toggled by
+  `applyMode()` in `main.ts` alongside the other mode-dependent chrome
+  (`.toolbar-hide[hidden]` needs the same explicit `display: none` override
+  as `.toolbar-qb-btn[hidden]` below, for the same specificity-tie reason) —
+  since it belongs to the facet-mockup browse view and there's no filter
+  sidebar to hide once the Query Builder is in view.
 - The toolbar's icon cluster also holds a real, interactive **"Query
   Builder" button** (`.toolbar-qb-btn`, styled like "Hide Filters" — teal
   text, no border) — the second non-static bit of chrome, and the one actual
   control the static markup exposes. `main.ts` attaches its click handler and
-  flips its label to "Exit Query Builder" while active. See "Facet sidebar"
-  below for what it toggles. **Currently hidden** (a plain `hidden` attribute
+  flips its label to "Exit Query Builder" while active. It toggles between
+  Query Builder mode and the faceted-filter sidebar mockup (`ui/
+  facetSidebar.ts`, described further down under "Not part of the
+  product"). **Currently hidden** (a plain `hidden` attribute
   in `index.html`, since the app now always opens in and stays in Query
   Builder mode by default — see below) — the element, its click handler,
   and the browse/facet-mockup mode it toggles to are all still fully intact
@@ -884,12 +817,14 @@ to compile this one component.
   re-renders naturally close them too. Single-select items also explicitly
   close their own menu, so no-op picks don't leave it hanging open.
 - **The property dropdown is filterable** (the operator one is not): a
-  sticky filter input at the top of its menu narrows the list as you type —
-  and, like the sidebar, matches **property labels *or* value labels**
-  (`propertyPickerMenu` in `ui/render.ts`, sharing its matching/highlight
-  logic with the sidebar via `ui/propertySearch.ts`). A value hit shows the
+  sticky filter input at the top of its menu narrows the list as you type,
+  matching **property labels *or* value labels**
+  (`propertyPickerMenu` in `ui/render.ts`, via `ui/propertySearch.ts`'s
+  shared matching/highlight logic). This dropdown is the only place in the
+  app to browse/search properties — there is no standalone property
+  sidebar. A value hit shows the
   matching values as clickable amber pills under their property (substring
-  highlighted, same `<mark>` treatment as the sidebar); clicking one sets
+  highlighted, `<mark>` treatment); clicking one sets
   *both* the property and that value on the condition in a single action —
   `setProperty` then `toggleValue`, composed directly rather than round-
   tripping through two store updates. Clicking the property row itself (not

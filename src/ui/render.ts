@@ -10,11 +10,9 @@ import {
   defaultOpFor,
 } from '../query/model'
 import type { QueryStore } from '../query/store'
-import { draggedPropertyId, endPropertyDrag } from './dnd'
 import { filterProperties, highlight } from './propertySearch'
 import {
   addChild,
-  insertChild,
   clearGroup,
   moveNode,
   removeNode,
@@ -85,9 +83,9 @@ const isPresence = (op: ConditionOp): boolean => op === 'hasValue' || op === 'no
 const PILL_TRAY_THRESHOLD = 50
 
 /**
- * Drag-and-drop reordering: the sidebar appends new conditions to the root
- * group, so dragging is how they reach their proper nested group. Flip to
- * `false` to hide the drag handles, drop zones, and draggable cards.
+ * Drag-and-drop reordering: lets a condition or nested group be moved into a
+ * different group. Flip to `false` to hide the drag handles, drop zones, and
+ * draggable cards.
  */
 const DND_ENABLED = true
 
@@ -275,9 +273,9 @@ function renderCondition(store: QueryStore, cond: Condition): HTMLElement {
   )
 
   // Filterable: 40+ properties — typing beats scrolling. Matches property
-  // labels *or* value labels, same as the sidebar: a value hit surfaces its
-  // property with the matching values as clickable pills underneath, so
-  // picking one sets both the property and that value in one click.
+  // labels *or* value labels: a value hit surfaces its property with the
+  // matching values as clickable pills underneath, so picking one sets both
+  // the property and that value in one click.
   const propertySelect = propertyPickerMenu(store, cond, property)
 
   const row = el(
@@ -599,8 +597,8 @@ function textButton(label: string, onClick: () => void): HTMLElement {
 /**
  * The condition's property picker. Like `inlineSelect` below (filterable,
  * single-select, resets on open), but matches property labels *or* value
- * labels — same search rules as the sidebar (`propertySearch.ts`). A value
- * hit renders its property with the matching values as clickable pills
+ * labels via `propertySearch.ts`. A value hit renders its property with the
+ * matching values as clickable pills
  * underneath; picking a pill sets the property *and* that value on this
  * condition in one action, instead of requiring a second step afterward.
  */
@@ -880,15 +878,13 @@ function dropZone(store: QueryStore, parentId: string, index: number): HTMLEleme
 }
 
 function makeDropTarget(store: QueryStore, zone: HTMLElement, parentId: string, index: number): void {
-  // Zones accept two kinds of drag: a node being moved within the tree
-  // (draggingId, module-local) and a property from the sidebar (via the
-  // cross-component dnd channel), which becomes a new condition on drop.
+  // Zones accept a node being moved within the tree (draggingId, module-local).
   zone.addEventListener('dragover', (e) => {
-    if (!draggingId && !draggedPropertyId()) return
+    if (!draggingId) return
     // Block dropping a group into itself or one of its descendants.
-    if (draggingId && isDescendant(store.get(), draggingId, parentId)) return
+    if (isDescendant(store.get(), draggingId, parentId)) return
     e.preventDefault()
-    if (e.dataTransfer) e.dataTransfer.dropEffect = draggingId ? 'move' : 'copy'
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
     zone.classList.add('over')
   })
   zone.addEventListener('dragleave', () => zone.classList.remove('over'))
@@ -896,19 +892,6 @@ function makeDropTarget(store: QueryStore, zone: HTMLElement, parentId: string, 
     e.preventDefault()
     e.stopPropagation()
     zone.classList.remove('over')
-    const propertyId = draggedPropertyId()
-    if (propertyId) {
-      endPropertyDrag()
-      const kind = getProperty(propertyId)?.kind
-      store.update((s) =>
-        insertChild(s, parentId, index, {
-          ...newCondition(),
-          propertyId,
-          op: kind ? defaultOpFor(kind) : 'any',
-        }),
-      )
-      return
-    }
     const id = draggingId
     draggingId = null
     if (id) store.update((s) => moveNode(s, id, parentId, index))

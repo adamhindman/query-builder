@@ -271,18 +271,6 @@ export function toggleValue(root: Group, condId: string, valueId: string): Group
   })
 }
 
-/** Remove every condition filtering on `propertyId`, anywhere in the tree.
-    (Groups are kept even if emptied.) */
-export function removePropertyConditions(root: Group, propertyId: string): Group {
-  const strip = (g: Group): Group => ({
-    ...g,
-    children: g.children
-      .filter((c) => !(c.kind === 'condition' && c.propertyId === propertyId))
-      .map((c) => (c.kind === 'group' ? strip(c) : c)),
-  })
-  return strip(root)
-}
-
 /** Remove a node by id. Returns the tree unchanged if the id is the root. */
 export function removeNode(root: Group, id: string): Group {
   if (root.id === id) return root
@@ -322,11 +310,6 @@ export function moveNode(root: Group, nodeId: string, targetGroupId: string, ind
 
   const detached = removeNode(root, nodeId)
   return insertInto(detached, targetGroupId, node, target) as Group
-}
-
-/** Insert a new node at `index` within the group `groupId` (index clamped). */
-export function insertChild(root: Group, groupId: string, index: number, child: Node): Group {
-  return insertInto(root, groupId, child, index) as Group
 }
 
 function insertInto(node: Node, targetGroupId: string, toInsert: Node, index: number): Node {
