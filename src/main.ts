@@ -214,16 +214,12 @@ const RESULT_COLUMNS = [
   'isMultiSpecimen',
   'isPartOfDataset',
   'fileSizeBytes',
-  'studyCode',
-  'countryCode',
-  'cohort',
-  'diagnosis',
-  'sex',
-  'age',
+  'specimenType',
+  'organ',
+  'tissue',
+  'nucleicAcidSource',
+  'cellType',
   'visitCode',
-  'enrollmentDate',
-  'hasBiomarkerData',
-  'apoeGenotype',
 ]
 const PAGE_SIZE = 25
 
@@ -299,8 +295,13 @@ const presetSelect = el(
       if (preset) store.update(() => preset.build())
     },
   },
-  el('option', { value: '', disabled: true, selected: true }, 'Choose a sample query'),
-  ...PRESETS.map((p) => el('option', { value: p.id }, p.label)),
+  el('option', { value: '', disabled: true, selected: true }, 'Select a query'),
+  ...PRESETS.filter((p) => p.id !== 'kitchen-sink').map((p) => el('option', { value: p.id }, p.label)),
+  el(
+    'optgroup',
+    { label: 'Development only' },
+    ...PRESETS.filter((p) => p.id === 'kitchen-sink').map((p) => el('option', { value: p.id }, p.label)),
+  ),
 )
 
 // A static, always-visible section under the "Cohort Builder" heading — not
@@ -593,7 +594,7 @@ function renderResults(): void {
           ...RESULT_COLUMNS.map((id) => {
             const th = headerCell(
               getProperty(id)?.label ?? id,
-              ...(id === 'sex' ? [headerIcon(FILTER_SVG)] : []),
+              ...(id === 'specimenType' ? [headerIcon(FILTER_SVG)] : []),
             )
             if (isNumericColumn(id)) th.classList.add('num')
             return th

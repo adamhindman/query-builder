@@ -5,10 +5,14 @@ import type { Property } from './schema'
  * A mock tabular dataset the query builder runs against — each row is one
  * **file** (Synapse-style `syn`-prefixed id), not a participant: the results
  * table shows a data-files view (Syn ID, File Name, Data Type, Assay Type,
- * File Format, Is Multi Specimen, File Size, Study Code), mirroring
- * susheelvarma.com/cohort-builder/'s "Data files" table. It's generated once
- * from the schema so every property has plausible values of the right shape,
- * and it's what the results panel filters and counts.
+ * File Format, Is Multi Specimen, File Size, Specimen Type, Organ, Tissue,
+ * Nucleic Acid Source, Cell Type, Visit Code) — deliberately excluding
+ * participant-level facts (sex, cohort, study, family-study status,
+ * post-mortem status, …) even though they're valid conditions to filter on,
+ * since a file-level table shouldn't display them as if they were file
+ * attributes. Mirrors susheelvarma.com/cohort-builder/'s "Data files" table.
+ * It's generated once from the schema so every property has plausible values
+ * of the right shape, and it's what the results panel filters and counts.
  *
  * Placeholder content, like the animal/ELITE mock elsewhere: the *shapes*
  * (one value per property kind, some missing values) are what matter, not
@@ -65,6 +69,7 @@ function genValue(property: Property, rand: () => number, index: number): Record
       if (rand() < MISSING) return null
       if (property.id === 'visitCode') return 1 + Math.floor(rand() * 5) // small visit count
       if (property.id === 'fileSizeBytes') return 1_000_000 + Math.floor(rand() * 29_999_000_000) // ~1MB–30GB
+      if (property.id === 'age') return 40 + Math.floor(rand() * 66) // 40–105, skews toward the cohort's elderly focus
       return 100 + Math.floor(rand() * 401) // fallback for any other range property
     case 'text':
       return rand() < MISSING ? null : genFileName(rand, index)

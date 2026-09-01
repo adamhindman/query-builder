@@ -158,7 +158,7 @@ shows live results, so the query does something, not just render.
   all sides. Its header row is styled after eliteportal.synapse.org's
   results table: a light-gray header band, a leading checkbox column, a
   decorative sort-glyph in every header cell plus a help icon on ID and a
-  filter icon on Sex, and numeric columns right-aligned with tabular
+  filter icon on Specimen Type, and numeric columns right-aligned with tabular
   figures. The header icons and sort-glyphs are pure chrome — the table
   doesn't actually sort or filter — but the **row checkboxes are real**;
   see "Batch selection" below. `.results-table-wrap` scrolls **horizontally** on its own
@@ -200,15 +200,17 @@ shows live results, so the query does something, not just render.
   nothing further to round). The static toolbar's "SUBJECTS MATCHED (n)"
   shows the same rounded/approximate value, so the two counts on screen
   never contradict each other.
-- **Sensitive fields:** `age`, `race`, `sex`, `ethnicGroupCode`, `diagnosis`,
+- **Sensitive fields:** `age`, `race`, `sex`, `ethnicity`, `diagnosis`,
   `cohort`, `countryCode`, and `apoeGenotype` are considered sensitive
-  quasi-identifiers. Two more were called out by name but don't exist as
-  distinct properties in the current schema — "Age Bin" (the existing `age`
-  property is already bin-valued, so this may just *be* `age`) and
-  "Diagnosis Macro" (a coarser grouping of `diagnosis` that isn't modeled
-  yet). Per-value result counts for these fields (and any other enum/boolean
-  property) **are** now shown, via the Results Distribution bar charts below —
-  and are rounded the same way the backend design doc's `FacetPostProcessor`
+  quasi-identifiers. One more was called out by name but doesn't exist as a
+  distinct property in the current schema — "Diagnosis Macro" (a coarser
+  grouping of `diagnosis` that isn't modeled yet). `age` is a plain numeric
+  (`range`-kind) field, not enum-valued, so unlike the others it doesn't get
+  per-value counts via the Results Distribution charts below (only
+  enum/boolean properties are offered there — see "Results Distribution").
+  Per-value result counts for the rest of these fields (and any other
+  enum/boolean property) **are** now shown, via those bar charts — and are
+  rounded the same way the backend design doc's `FacetPostProcessor`
   framework (ROUNDING / NOISE, §4.5–4.7) protects facet statistics, using
   this app's own `query/rounding.ts` rather than a per-field allowlist (every
   characterizable property is rounded, sensitive or not — simpler, and
@@ -299,7 +301,7 @@ type Property =
 ```
 
 Every property carries a **`category`** (Demographic & Clinical, Study &
-Cohort Design, Data Modality, Assessment Availability, Genetic
+Cohort Design, Biospecimen, Data Modality, Assessment Availability, Genetic
 Stratification, Comorbidity) that groups the sidebar. `PROPERTIES`'s own
 array order matches those groupings; the section comments in the data file
 mark the same boundaries the `category` field encodes, kept for

@@ -23,8 +23,8 @@ const DUMMY_STUDY_CODES: PropertyValue[] = Array.from({ length: 103 }, (_, i) =>
  * has been tidied (e.g. "Has Cvd" → "Has CVD").
  *
  * Each property carries a `category` (Demographic & Clinical, Study & Cohort
- * Design, Data Modality, Assessment Availability, Genetic Stratification,
- * Comorbidity) that groups the sidebar (`ui/sidebar.ts`). The array's own
+ * Design, Biospecimen, Data Modality, Assessment Availability, Genetic
+ * Stratification, Comorbidity) that groups the sidebar (`ui/sidebar.ts`). The array's own
  * order still matches those groupings — the section comments below mark the
  * same boundaries the `category` field encodes, kept for readability.
  */
@@ -34,16 +34,8 @@ export const PROPERTIES: Property[] = [
     id: 'age',
     label: 'Age',
     category: 'Demographic & Clinical',
-    kind: 'enum',
-    ordered: true,
-    values: [
-      { id: 'lt70', label: '<70' },
-      { id: '70_74', label: '70–74' },
-      { id: '75_79', label: '75–79' },
-      { id: '80_84', label: '80–84' },
-      { id: '85_89', label: '85–89' },
-      { id: '90plus', label: '90+' },
-    ],
+    kind: 'range',
+    unit: 'years',
   },
   {
     id: 'sex',
@@ -109,12 +101,6 @@ export const PROPERTIES: Property[] = [
     id: 'ethnicity',
     label: 'Ethnicity',
     category: 'Demographic & Clinical',
-    kind: 'boolean',
-  },
-  {
-    id: 'ethnicGroupCode',
-    label: 'Ethnic Group Code',
-    category: 'Demographic & Clinical',
     kind: 'enum',
     ordered: false,
     values: [
@@ -157,8 +143,8 @@ export const PROPERTIES: Property[] = [
     ],
   },
   {
-    id: 'studyCode',
-    label: 'Study Code',
+    id: 'studyKey',
+    label: 'Study Key',
     category: 'Study & Cohort Design',
     kind: 'enum',
     ordered: false,
@@ -227,6 +213,106 @@ export const PROPERTIES: Property[] = [
     id: 'hasMZTwinData',
     label: 'Has MZ Twin Data',
     category: 'Study & Cohort Design',
+    kind: 'boolean',
+  },
+
+  // ── Biospecimen ─────────────────────────────────────────────────────
+  // Specimen-level fields: what physical material a file's data was
+  // generated from. Unlike most of the properties above, these are
+  // genuinely file/specimen-level, not participant-level.
+  {
+    id: 'specimenType',
+    label: 'Specimen Type',
+    category: 'Biospecimen',
+    kind: 'enum',
+    ordered: false,
+    values: [
+      { id: 'whole_blood', label: 'Whole Blood' },
+      { id: 'plasma', label: 'Plasma' },
+      { id: 'serum', label: 'Serum' },
+      { id: 'pbmc', label: 'PBMC' },
+      { id: 'buffy_coat', label: 'Buffy Coat' },
+      { id: 'csf', label: 'CSF' },
+      { id: 'saliva', label: 'Saliva' },
+      { id: 'urine', label: 'Urine' },
+      { id: 'frozen_tissue', label: 'Frozen Tissue' },
+      { id: 'ffpe_tissue', label: 'FFPE Tissue' },
+      { id: 'dna', label: 'DNA' },
+      { id: 'rna', label: 'RNA' },
+    ],
+  },
+  {
+    id: 'organ',
+    label: 'Organ',
+    category: 'Biospecimen',
+    kind: 'enum',
+    ordered: false,
+    values: [
+      { id: 'brain', label: 'Brain' },
+      { id: 'blood', label: 'Blood' },
+      { id: 'skin', label: 'Skin' },
+      { id: 'skeletal_muscle', label: 'Skeletal Muscle' },
+      { id: 'adipose', label: 'Adipose Tissue' },
+      { id: 'liver', label: 'Liver' },
+      { id: 'heart', label: 'Heart' },
+      { id: 'kidney', label: 'Kidney' },
+    ],
+  },
+  {
+    id: 'tissue',
+    label: 'Tissue',
+    category: 'Biospecimen',
+    kind: 'enum',
+    ordered: false,
+    values: [
+      { id: 'frontal_cortex', label: 'Frontal Cortex' },
+      { id: 'temporal_cortex', label: 'Temporal Cortex' },
+      { id: 'hippocampus', label: 'Hippocampus' },
+      { id: 'cerebellum', label: 'Cerebellum' },
+      { id: 'substantia_nigra', label: 'Substantia Nigra' },
+      { id: 'whole_blood_tissue', label: 'Whole Blood' },
+      { id: 'skin_tissue', label: 'Skin' },
+      { id: 'skeletal_muscle_tissue', label: 'Skeletal Muscle' },
+    ],
+  },
+  {
+    id: 'nucleicAcidSource',
+    label: 'Nucleic Acid Source',
+    category: 'Biospecimen',
+    kind: 'enum',
+    ordered: false,
+    values: [
+      { id: 'whole_blood_source', label: 'Whole Blood' },
+      { id: 'pbmc_source', label: 'PBMC' },
+      { id: 'buffy_coat_source', label: 'Buffy Coat' },
+      { id: 'saliva_source', label: 'Saliva' },
+      { id: 'cell_line', label: 'Cell Line' },
+      { id: 'fibroblast_source', label: 'Fibroblast' },
+      { id: 'postmortem_brain', label: 'Postmortem Brain Tissue' },
+      { id: 'ffpe_source', label: 'FFPE Tissue' },
+    ],
+  },
+  {
+    id: 'cellType',
+    label: 'Cell Type',
+    category: 'Biospecimen',
+    kind: 'enum',
+    ordered: false,
+    values: [
+      { id: 'neuron', label: 'Neuron' },
+      { id: 'astrocyte', label: 'Astrocyte' },
+      { id: 'microglia', label: 'Microglia' },
+      { id: 'oligodendrocyte', label: 'Oligodendrocyte' },
+      { id: 'endothelial_cell', label: 'Endothelial Cell' },
+      { id: 'pbmc_cell', label: 'PBMC' },
+      { id: 'fibroblast_cell', label: 'Fibroblast' },
+      { id: 'ipsc_neuron', label: 'iPSC-Derived Neuron' },
+    ],
+  },
+  {
+    id: 'isPostMortem',
+    label: 'Is Post-Mortem',
+    category: 'Biospecimen',
     kind: 'boolean',
   },
 

@@ -22,7 +22,7 @@ const CHIP_ONLY_IDS = [
   'cohort',
   'familyStudyParticipant',
   'race',
-  'ethnicGroupCode',
+  'ethnicity',
   'dataType',
   'assayType',
   'fileFormat',
