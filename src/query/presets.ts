@@ -34,19 +34,18 @@ function textCond(
   return { ...newCondition(), propertyId, op, text }
 }
 
+/** Two-sided numeric range. */
+function rangeCond(propertyId: string, min: number, max: number): Condition {
+  return { ...newCondition(), propertyId, op: 'between', range: { min, max } }
+}
+
 function presenceCond(propertyId: string, op: 'hasValue' | 'noValue'): Condition {
   return { ...newCondition(), propertyId, op }
 }
 
-/** on/after keep their value in min, before in max — same convention as cmpCond. */
-function dateCond(propertyId: string, op: 'on' | 'before' | 'after', value: string): Condition {
-  const usesMin = op === 'on' || op === 'after'
-  return {
-    ...newCondition(),
-    propertyId,
-    op,
-    date: { min: usesMin ? value : null, max: usesMin ? null : value },
-  }
+/** Two-sided date range. */
+function dateBetweenCond(propertyId: string, min: string, max: string): Condition {
+  return { ...newCondition(), propertyId, op: 'between', date: { min, max } }
 }
 
 function group(combinator: Group['combinator'], exclude: boolean, children: Node[]): Group {
@@ -63,23 +62,21 @@ export const PRESETS: Preset[] = [
   {
     id: 'kitchen-sink',
     label: 'Every condition type',
+    // One condition per property kind, no repeats — a flat AND group so
+    // each type is easy to pick out on its own, rather than a realistic
+    // (and more tangled) cohort definition. The extra `studyKey` condition
+    // is a second enum on top of that: it's a 50+ value property, to show
+    // the value-pill scrolling tray a short enum like `diagnosis` doesn't
+    // trigger.
     build: () =>
       group('AND', false, [
-        cond('diagnosis', 'any', ['alzheimers', 'mci']),
-        boolCond('hasBiomarkerData', true),
-        presenceCond('apoeGenotype', 'hasValue'),
-        cmpCond('visitCode', 'gte', 2),
-        cond('fieldCenterCode', 'any', ['pittsburgh', 'sacramento', 'hagerstown']),
-        dateCond('enrollmentDate', 'after', '2018-01-01'),
-        group('OR', false, [
-          cond('dataType', 'any', ['gene_expression', 'protein_abundance']),
-          textCond('fileName', 'endsWith', '.vcf'),
-          cond('fieldCenterCode', 'any', ['baltimore', 'bronx', 'new_york', 'boston']),
-        ]),
-        group('AND', true, [
-          cond('cohort', 'any', ['arivale']),
-          presenceCond('yearsOfEducation', 'noValue'),
-        ]),
+        cond('diagnosis', 'any', ['alzheimers', 'mci']), // enum
+        boolCond('hasBiomarkerData', true), // boolean
+        rangeCond('visitCode', 2, 4), // range
+        textCond('fileName', 'contains', 'ad_'), // text
+        dateBetweenCond('enrollmentDate', '2018-01-01', '2022-12-31'), // date
+        presenceCond('apoeGenotype', 'hasValue'), // presence
+        cond('studyKey', 'any', ['asdoel', 'cdcp', 'study050']), // long enum (50+ values)
       ]),
   },
   {
@@ -98,7 +95,7 @@ export const PRESETS: Preset[] = [
     build: () =>
       group('AND', false, [
         cond('apoeGenotype', 'any', ['e3_e4', 'e4_e4']),
-        cond('age', 'any', ['75_79', '80_84', '85_89', '90plus']),
+        cmpCond('age', 'gte', 75),
         cond('diagnosis', 'any', ['alzheimers', 'mci', 'parkinsons']),
       ]),
   },
@@ -122,7 +119,7 @@ export const PRESETS: Preset[] = [
     build: () =>
       group('AND', false, [
         cond('cohort', 'any', ['llfs', 'centenarian']),
-        cond('age', 'any', ['90plus']),
+        cmpCond('age', 'gte', 90),
         boolCond('mortalityStatus', false),
       ]),
   },
@@ -187,12 +184,12 @@ export const PRESETS: Preset[] = [
   {
     id: 'matched-controls',
     label: 'Matched female controls across cohorts',
-    // Mixes every input kind: enum, age bins, boolean, range, nested OR of
+    // Mixes every input kind: enum, boolean, range (including age), nested OR of
     // AND groups, plus an excluded comorbidity group.
     build: () =>
       group('AND', false, [
         cond('sex', 'any', ['female']),
-        cond('age', 'any', ['80_84', '85_89', '90plus']),
+        cmpCond('age', 'gte', 80),
         group('OR', false, [
           group('AND', false, [
             cond('cohort', 'any', ['llfs']),
