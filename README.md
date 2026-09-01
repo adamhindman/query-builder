@@ -26,6 +26,80 @@ behind this build, see [`CLAUDE.md`](./CLAUDE.md) — that document is the
 source of truth for how (and why) this is built, written for whoever
 rebuilds this for real.
 
+## Easy-to-miss features
+
+Things that only surface through interaction, hover, or an edge-case state —
+not visible from a glance at the default screen.
+
+**Interaction / editing**
+- **Drag-and-drop reordering** — conditions and groups can be dragged to
+  reorder or moved into a different group (reordering is cosmetic; moving to
+  a different group changes the logic).
+- **The property picker is searchable by value, not just property name** —
+  typing a value label (e.g. "Alzheimer's") surfaces it as a clickable pill
+  under its property; clicking it sets the property *and* that value in one
+  action. Enter picks the first matching property row.
+- **"is none of" turns selected value pills red** instead of blue — the only
+  per-condition visual cue that it's an exclusion.
+- **Presence operators** ("has a value"/"has no value") make the entire
+  value-input UI disappear — easy to miss that this is intentional, not
+  broken.
+- **Inputs commit on blur, not on keystroke** (number, text, date) — typing
+  doesn't visibly do anything until you click away or hit Enter.
+
+**Query Summary box**
+- **Plain English / SQL toggle** — a small segmented switch in the summary
+  header renders the same query as illustrative SQL.
+- **The root group has no outer parentheses**, but nested or excluded groups
+  always do — subtle but deliberate for legibility.
+
+**Visual language you have to notice on hover**
+- **Hovering a group tints only the innermost group** under the cursor, not
+  every ancestor — reveals nesting scope without a border/box.
+- **Tooltips on the AND/OR pill and "+ Condition Group"** spell out the "one
+  combinator per group, nest to mix logic" rule — the single biggest point
+  of confusion in user testing, but the explanation only shows on hover.
+- **Excluded groups have no background fill at all** — exclusion is signaled
+  purely by the red bracket + pill color, nothing else changes.
+
+**Results table & privacy**
+- **The match-count badge only pulses when the count actually changes** (not
+  on every render, e.g. paging).
+- **Counts are rounded to the nearest 10 with a "≈" and a "Rounded" badge** —
+  and a "How this number was computed" disclosure link sits to the badge's
+  left (currently placeholder copy).
+- **Counts under 20 hide the table entirely** and show "<20" instead of the
+  real number, in both places the count appears.
+- **Results Distribution charts auto-hide** when the count drops below the
+  suppression threshold, and silently reappear once it recovers.
+- **The first Results Distribution chart auto-adds itself** the first time
+  you pick any chartable property — but only once per page load, even if you
+  delete every chart afterward.
+- **"Why can't I see the counts?"** is a click-toggled tooltip on each chart,
+  not hover.
+
+**Persistence & batch actions**
+- **Checking result rows slides up a toolbar from the bottom** of the
+  screen; selection survives pager clicks but is cleared on any query
+  change.
+- **"Add to Download List" doesn't clear your selection** — it's a separate
+  action from "done with these rows."
+- **The download list persists across reloads** via `localStorage`, but your
+  on-page row selection does not — the nav badge count survives, checkboxes
+  don't.
+
+**Hidden/dev-only**
+- **⌘/Ctrl+\\** opens a floating dev-tools menu with "Clear all."
+- **The "Every condition type" sample query is tucked into a "Development
+  only" `<optgroup>`** at the bottom of the sample-query dropdown, separate
+  from the realistic examples.
+- **The browse/facet-sidebar mockup and its mode toggle still fully work
+  under the hood** — they're just hidden via a `hidden` attribute on one
+  button in `index.html`, not removed.
+- **Enum "all"/"none" operators exist end-to-end** (model, evaluator,
+  summary, SQL) but are hidden from the operator dropdown — re-enabling is a
+  one-line change.
+
 ## Development
 
 ```sh
