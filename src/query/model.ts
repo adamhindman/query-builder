@@ -194,9 +194,12 @@ export function toggleExclude(root: Group, groupId: string): Group {
   return update(root, groupId, (n) => (n.kind === 'group' ? { ...n, exclude: !n.exclude } : n))
 }
 
+/** Add a new condition or nested group to `groupId`. Prepended to the front
+    of its children, not appended, so a freshly-added row is immediately
+    visible without scrolling down a long group. */
 export function addChild(root: Group, groupId: string, child: Node): Group {
   return update(root, groupId, (n) =>
-    n.kind === 'group' ? { ...n, children: [...n.children, child] } : n,
+    n.kind === 'group' ? { ...n, children: [child, ...n.children] } : n,
   )
 }
 

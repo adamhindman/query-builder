@@ -5,8 +5,9 @@ import type { Property } from './schema'
  * A mock tabular dataset the query builder runs against — each row is one
  * **file** (Synapse-style `syn`-prefixed id), not a participant: the results
  * table shows a data-files view (Syn ID, File Name, Data Type, Assay Type,
- * File Format, Is Multi Specimen, File Size, Specimen Type, Organ, Tissue,
- * Nucleic Acid Source, Cell Type, Visit Code) — deliberately excluding
+ * File Format, Is Multi Specimen, Participant Count, File Size, Specimen
+ * Type, Organ, Tissue, Nucleic Acid Source, Cell Type, Visit Code) —
+ * deliberately excluding
  * participant-level facts (sex, cohort, study, family-study status,
  * post-mortem status, …) even though they're valid conditions to filter on,
  * since a file-level table shouldn't display them as if they were file
@@ -26,7 +27,7 @@ import type { Property } from './schema'
 /** One property's value in a record; the shape follows the property kind. */
 export type RecordValue = string[] | number | boolean | string | null
 
-export type ParticipantRecord = {
+export type FileRecord = {
   id: string
   /** propertyId → value (kind-appropriate). `null` / empty = missing. */
   values: Record<string, RecordValue>
@@ -34,8 +35,12 @@ export type ParticipantRecord = {
 
 export const RECORD_COUNT = 25000
 
-/** Fraction of scalar/single values left missing, so presence ops are real. */
-const MISSING = 0.08
+/** Fraction of scalar/single values left missing. 0 — every record is fully
+    populated, so the Results table never shows a "—" placeholder. (This
+    means `has a value`/`has no value` presence operators have nothing to
+    actually match against right now; bump this back up if that needs to be
+    demonstrable again.) */
+const MISSING = 0
 
 const FILE_TOKENS = ['ad', 'ctrl', 'long', 'cvd', 'apoe', 'twin']
 const FILE_EXTS = ['bam', 'cram', 'fastq', 'vcf', 'csv', 'idat', 'mzml']
@@ -70,6 +75,15 @@ function genValue(property: Property, rand: () => number, index: number): Record
       if (property.id === 'visitCode') return 1 + Math.floor(rand() * 5) // small visit count
       if (property.id === 'fileSizeBytes') return 1_000_000 + Math.floor(rand() * 29_999_000_000) // ~1MB–30GB
       if (property.id === 'age') return 40 + Math.floor(rand() * 66) // 40–105, skews toward the cohort's elderly focus
+      if (property.id === 'participantCount') {
+        // Mostly pooled multi-sample files, with a smaller share of small
+        // single-/few-participant files — most rows show an exact number,
+        // with enough in the 1–19 range to still exercise the "<20" display.
+        const r = rand()
+        if (r < 0.1) return 1
+        if (r < 0.2) return 2 + Math.floor(rand() * 18) // 2–19
+        return 20 + Math.floor(rand() * 481) // 20–500
+      }
       return 100 + Math.floor(rand() * 401) // fallback for any other range property
     case 'text':
       return rand() < MISSING ? null : genFileName(rand, index)
@@ -89,9 +103,9 @@ function genSynId(rand: () => number): string {
   return `syn${String(Math.floor(rand() * 1e8)).padStart(8, '0')}`
 }
 
-function generate(): ParticipantRecord[] {
+function generate(): FileRecord[] {
   const rand = makeRng(0x51a9e2)
-  const records: ParticipantRecord[] = []
+  const records: FileRecord[] = []
   for (let i = 0; i < RECORD_COUNT; i++) {
     const values: Record<string, RecordValue> = {}
     for (const property of PROPERTIES) values[property.id] = genValue(property, rand, i + 1)
@@ -100,4 +114,4 @@ function generate(): ParticipantRecord[] {
   return records
 }
 
-export const RECORDS: ParticipantRecord[] = generate()
+export const RECORDS: FileRecord[] = generate()

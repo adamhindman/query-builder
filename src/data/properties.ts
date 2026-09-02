@@ -196,6 +196,7 @@ export const PROPERTIES: Property[] = [
     label: 'Visit Code',
     category: 'Study & Cohort Design',
     kind: 'range',
+    description: 'Which numbered study visit the specimen was collected at.',
   },
   {
     id: 'enrollmentDate',
@@ -226,6 +227,7 @@ export const PROPERTIES: Property[] = [
     category: 'Biospecimen',
     kind: 'enum',
     ordered: false,
+    description: "The type of biological specimen the file's data was derived from (e.g. whole blood, CSF).",
     values: [
       { id: 'whole_blood', label: 'Whole Blood' },
       { id: 'plasma', label: 'Plasma' },
@@ -247,6 +249,7 @@ export const PROPERTIES: Property[] = [
     category: 'Biospecimen',
     kind: 'enum',
     ordered: false,
+    description: 'The organ the specimen was collected from.',
     values: [
       { id: 'brain', label: 'Brain' },
       { id: 'blood', label: 'Blood' },
@@ -264,6 +267,7 @@ export const PROPERTIES: Property[] = [
     category: 'Biospecimen',
     kind: 'enum',
     ordered: false,
+    description: 'The specific tissue or anatomical region the specimen was collected from.',
     values: [
       { id: 'frontal_cortex', label: 'Frontal Cortex' },
       { id: 'temporal_cortex', label: 'Temporal Cortex' },
@@ -281,6 +285,7 @@ export const PROPERTIES: Property[] = [
     category: 'Biospecimen',
     kind: 'enum',
     ordered: false,
+    description: 'The source material nucleic acids were extracted from for sequencing.',
     values: [
       { id: 'whole_blood_source', label: 'Whole Blood' },
       { id: 'pbmc_source', label: 'PBMC' },
@@ -298,6 +303,7 @@ export const PROPERTIES: Property[] = [
     category: 'Biospecimen',
     kind: 'enum',
     ordered: false,
+    description: "The cell type profiled or sorted for this file's data.",
     values: [
       { id: 'neuron', label: 'Neuron' },
       { id: 'astrocyte', label: 'Astrocyte' },
@@ -323,6 +329,7 @@ export const PROPERTIES: Property[] = [
     category: 'Data Modality',
     kind: 'enum',
     ordered: false,
+    description: 'The category of biological data contained in the file (e.g. gene expression, variant calls).',
     values: [
       { id: 'dna_methylation', label: 'DNA methylation' },
       { id: 'gene_expression', label: 'gene expression' },
@@ -337,6 +344,7 @@ export const PROPERTIES: Property[] = [
     category: 'Data Modality',
     kind: 'enum',
     ordered: false,
+    description: "The experimental method used to generate the file's data.",
     values: [
       { id: 'rnaseq', label: 'RNAseq' },
       { id: 'wes', label: 'WES' },
@@ -353,6 +361,7 @@ export const PROPERTIES: Property[] = [
     category: 'Data Modality',
     kind: 'enum',
     ordered: false,
+    description: "The file's storage format (e.g. BAM, VCF, CSV).",
     values: [
       { id: 'bam', label: 'BAM' },
       { id: 'cram', label: 'CRAM' },
@@ -368,6 +377,17 @@ export const PROPERTIES: Property[] = [
     label: 'Is Multi-Specimen',
     category: 'Data Modality',
     kind: 'boolean',
+    description: 'Whether the file contains data from more than one specimen.',
+  },
+  // Placeholder: not in the ELITE-47 spec — how many participants' data is
+  // pooled into this file (e.g. a multi-sample VCF). Randomly assigned in
+  // `data/records.ts`, skewed toward single-participant files.
+  {
+    id: 'participantCount',
+    label: 'Participant Count',
+    category: 'Data Modality',
+    kind: 'range',
+    description: "How many participants' data is included in this file.",
   },
   // Placeholder: not in the ELITE-47 spec — whether this file is part of a
   // curated dataset (vs. a standalone file); the Results table's "Dataset"
@@ -377,6 +397,7 @@ export const PROPERTIES: Property[] = [
     label: 'Part of Dataset',
     category: 'Data Modality',
     kind: 'boolean',
+    description: 'Whether the file is part of a curated dataset, rather than a standalone upload.',
   },
   // Placeholder: not in the ELITE-47 spec — exists to exercise the text
   // kind (contains / starts with / …). Swap for a real free-text field
@@ -386,6 +407,7 @@ export const PROPERTIES: Property[] = [
     label: 'File Name',
     category: 'Data Modality',
     kind: 'text',
+    description: 'The name of the data file.',
   },
   // Placeholder: not in the ELITE-47 spec — mirrors the "File Size Bytes"
   // column at susheelvarma.com/cohort-builder/'s Data files table.
@@ -394,6 +416,7 @@ export const PROPERTIES: Property[] = [
     label: 'File Size (Bytes)',
     category: 'Data Modality',
     kind: 'range',
+    description: "The file's size, in bytes.",
   },
 
   // ── Assessment Availability ─────────────────────────────────────────

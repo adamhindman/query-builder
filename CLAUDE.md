@@ -102,9 +102,12 @@ shows live results, so the query does something, not just render.
 - `data/records.ts` generates a **seeded** (stable across reloads) set of
   ~25,000 records from the schema: each property gets a kind-appropriate,
   **single**-valued value — enum → a one-element array of a value id, boolean
-  → true/false, range → a number, text → a filename-like string. A fraction
-  of values are **missing** (`null` / empty) so the presence operators are
-  exercised.
+  → true/false, range → a number, text → a filename-like string.
+  `MISSING` (fraction of values left `null`) is currently **0** — no
+  Results table cell shows a "—" placeholder. The mechanism to leave a
+  fraction of values missing (so `has a value`/`has no value` presence
+  operators have something to match against) is still there, just dialed to
+  0; bump `MISSING` back up if that needs to be demonstrable again.
 - `query/evaluate.ts` is the runtime twin of `summary.ts`: same operator
   semantics, evaluated against a record. `matchesGroup` handles
   combinator + exclude (an **empty group constrains nothing** → matches);
@@ -113,26 +116,86 @@ shows live results, so the query does something, not just render.
   **no constraint** — it matches every record — so the startup blank condition
   reads as "all N participants". Missing values fail value comparisons but are
   what `has no value` looks for.
-- The **match count** lives as a badge next to the "Query Builder" H1
-  (`space-between` in the header row) — not above the results table. It's a
-  lightly-rounded (not fully pill-shaped) chip tinted with the site's teal
-  brand color (`#39ac97`, the same one used for nav/tab highlights), showing
-  a large bold number (`.results-count-num`) next to a smaller muted label
-  (`.results-count-label`) reading "N subjects matched". The "Results"
-  heading above the table is a plain, uncounted H3 — the count doesn't
-  appear twice.
-- A small circular **"?" help button** (`.qb-help-btn`) sits right next to
-  the "Query Builder" H1 (grouped together in `.builder-title-group`, so the
-  header's `space-between` still has just two flex children — the title
-  group and the match-count badge). It opens the **info modal**
-  (`ui/modal.ts`'s `infoModal`/`infoModalRoot`, a sibling of the confirm
-  modal that reuses the same `.modal-*` CSS but has a single "Got it" button
-  instead of Cancel/Confirm) with a short bullet list covering: one AND/OR
-  per group + nesting for mixed logic, group-level NOT vs. the per-condition
-  "is none of", what a condition does, drag-to-reorder/move semantics, and
-  the "Query Summary" sentence as the always-available plain-English check.
-  Its content lives in `main.ts`'s `openHelpModal()`, shared by the button
-  and the auto-open below rather than duplicated between them.
+- The **match count** lives as a badge that reads as sitting next to the
+  "Cohort Builder" H1 — not above the results table. It's a lightly-rounded
+  (not fully pill-shaped) chip tinted with the site's teal brand color
+  (`#39ac97`, the same one used for nav/tab highlights), showing a large
+  bold number (`.results-count-num`) next to a smaller muted label
+  (`.results-count-label`) reading **"Matching Files"** — the same wording
+  as the Results table's own heading below, for consistency. The
+  **"Matching Files"** heading above the table (named that rather than a
+  generic "Results" to reinforce the file/participant distinction below) is a
+  plain, uncounted H3 — the count doesn't appear twice. A small **muted
+  hint line** (`.results-hint`) sits directly under that H3: "Each row is a
+  file that contains data from at least one matching participant — not a
+  list of individual participants." User testing found some people read
+  the table as a list of individuals rather than files, so this states the
+  file/participant distinction plainly
+  rather than leaving it implicit.
+  - **It's genuinely `position: sticky`**, not fixed and not JS-measured —
+    but it doesn't live inside `.builder-header`. A sticky element can only
+    stay stuck for as long as scroll is still passing through its own
+    containing block, and `.builder-header` is far too short a box to cover
+    the scroll distance down through the tree, characterizations, and
+    Results table. Instead, `resultsCountWrap` is wrapped in a small
+    `.results-count-anchor` div (`main.ts`) that's inserted as the **first
+    child of `.content-col`** — the flex column that holds `builderMain`,
+    characterizations, and the results section, i.e. the full height the
+    badge needs to stay stuck across. `.content-col` has no `overflow`
+    property set, which matters: setting `overflow-x` to anything but
+    `visible` forces `overflow-y` to compute as `auto` too, turning an
+    element into a scroll container that can break `position: sticky`'s
+    viewport tracking for anything nested inside it (this is why
+    `.results-table-wrap`'s own `overflow-x: auto`, needed for horizontal
+    scrolling, rules out ever making its header sticky without a bounded
+    inner scroll pane). `.content-col` has no such property, so no such
+    risk here.
+  - The anchor itself is `position: sticky; top: var(--nav-h); height: 0`
+    — zero height so it doesn't push `builderMain`/characterizations/results
+    down, and `resultsCountWrap` inside it is `position: absolute` so its
+    own real size doesn't affect that zero footprint. Because the anchor is
+    `.content-col`'s first child, its resting (non-stuck) position is
+    already right where `.builder`'s own top padding begins, so the
+    absolutely positioned wrap inside only needs a small `top: 1rem` (a
+    hand-picked offset, not matched to `.builder`'s own padding) plus
+    `right: 1.5rem` (matching `.builder`'s right padding, so it lines up
+    with the title's right edge) to land next to "Cohort Builder" *without
+    any JS measurement*: pure CSS gets the alignment for free once the
+    anchor is rooted in the right place.
+  - The anchor is **hidden/shown in `applyMode()` alongside `builderMain`**
+    (`resultsCountAnchor.hidden = mode !== 'builder'`) since moving it out
+    of `builderMain`'s own subtree means it's no longer automatically
+    hidden when that is — it still reads as part of the "Cohort Builder"
+    header, so it only shows in Query Builder mode, matching prior
+    behavior. `.results-count-anchor` deliberately has **no explicit
+    `display` declared** — so the browser's own `[hidden] { display: none }`
+    rule applies without needing one of this codebase's usual `[hidden]`
+    overrides (those are only needed when an author rule also sets
+    `display` on the same selector, e.g. `.sidebar`/`.toolbar-qb-btn`).
+  - The badge gets a **subtle box-shadow only once the page has actually
+    scrolled** (`.scrolled` class, toggled by a `scroll` listener at a small
+    threshold) — at rest it already sits flush with the page and a shadow
+    would look like unexplained clutter; it only earns one once it's
+    actually stuck with scrolled content passing beneath it. The shadow's
+    appearance is animated via a `box-shadow` CSS transition (between a
+    transparent and a visible value), not an abrupt class swap.
+- A visible **"How to Use Cohort Builder" text button** (`.qb-help-btn`, a
+  small "?" badge plus label, filled with a soft background at rest —
+  deliberately not just a bare icon, so it reads as a discoverable
+  affordance) sits right next to the "Cohort Builder" H1, both grouped
+  together in `.builder-title-group`. It opens
+  the **info modal** (`ui/modal.ts`'s `infoModal`/`infoModalRoot`, a sibling
+  of the confirm modal that reuses the same `.modal-*` CSS but has a single
+  "Got it" button instead of Cancel/Confirm) with a bullet list covering: one
+  AND/OR per group + nesting for mixed logic, group-level NOT vs. the
+  per-condition "is none of", what a condition does, drag-to-reorder/move
+  semantics, and the "Query Summary" sentence as the always-available
+  plain-English-or-SQL check. Its content lives in `main.ts`'s
+  `openHelpModal()`. This is the one `infoModal` caller that passes
+  `{ wide: true }` — a `.modal-card-wide` modifier (max-width 570px, 50%
+  wider than the default 380px) reserved for content that needs the extra
+  room; the "How this number was computed" disclosure (the other `infoModal`
+  caller) stays at the default width.
 - **Communicating "one AND/OR per group, nest to mix logic"** — user
   testing found this was the single biggest usability problem in the tree,
   so it gets reinforced a few ways, from cheapest to most involved:
@@ -157,15 +220,41 @@ shows live results, so the query does something, not just render.
   browser width, with a 40px margin on all sides. Its header row is styled
   after eliteportal.synapse.org's
   results table: a light-gray header band, a leading checkbox column, a
-  decorative sort-glyph in every header cell plus a help icon on ID and a
-  filter icon on Specimen Type, and numeric columns right-aligned with tabular
-  figures. The header icons and sort-glyphs are pure chrome — the table
-  doesn't actually sort or filter — but the **row checkboxes are real**;
-  see "Batch selection" below. `.results-table-wrap` scrolls **horizontally** on its own
+  decorative sort-glyph in every header cell, a **help icon in every header
+  cell** (not just ID — extended to every column so the hover-for-a-
+  definition affordance is visually discoverable rather than invisible),
+  and a filter icon on Specimen Type on top of that, plus numeric columns
+  right-aligned with tabular figures. The sort-glyphs and filter icon are
+  pure chrome — the table doesn't actually sort or filter — but the **row
+  checkboxes are real**; see "Batch selection" below, and the **help icons
+  are real too**: **every header cell has a hover tooltip** (the native
+  `title` attribute — the same mechanism this app already uses for the
+  AND/OR pill and other tooltips, not a custom widget) giving a
+  one-sentence definition of that column: `headerCell()` in `main.ts` takes
+  an optional `description` string, sourced from the matching property's
+  own `description` field in the schema (`schema.ts`'s `PropertyBase`,
+  filled in for the 13 properties currently shown as columns — not the full
+  schema, since only those are actually displayed right now). "Syn ID" gets
+  a one-off description passed directly at its call site, since it isn't a
+  schema property. `.results-table-wrap` scrolls **horizontally** on its own
   (`overflow-x: auto`) once the columns don't fit, rather than the page body
   scrolling or the columns being squeezed — `.results-table` uses
   `width: max-content; min-width: 100%` (not a plain `100%`) specifically so
-  it's free to grow past its container instead of always matching it. The
+  it's free to grow past its container instead of always matching it. **A
+  second, independent horizontal scrollbar sits above the table**
+  (`.results-scrollbar-top`, `main.ts`), in addition to the table's own at
+  its natural bottom edge — so a wide table can be scrolled from either
+  edge without reaching all the way down to it. A single scrolling element
+  can only ever render one native scrollbar per axis, so this isn't a
+  repositioned copy of the table's scrollbar — it's a genuinely separate
+  `overflow-x: auto` element containing an invisible 1px-tall spacer div
+  (`.results-scrollbar-top-spacer`) sized in JS to match the table's actual
+  `scrollWidth` after every render. A `scroll` listener on each element
+  syncs the other's `scrollLeft` (guarded by a `syncingScroll` flag against
+  the sync re-triggering itself), so dragging either scrollbar moves the
+  same content. Both `.results-scrollbar-top` and `.results-pager` are
+  hidden/shown together with the table (empty and suppressed-count states
+  have nothing to scroll). The
   pager (`.results-pager`) is a **separate persistent element, a sibling of
   `.results-table-wrap`** rather than nested inside it — so it stays fixed
   in place and doesn't scroll along with a wide table. Page
@@ -187,17 +276,37 @@ shows live results, so the query does something, not just render.
     places the count appears (the header badge and the static toolbar's
     "SUBJECTS MATCHED (n)"). The exact small count is never surfaced
     anywhere in the UI once it's below threshold — only "<20".
+- **Participant Count** (`participantCount`, a `range`-kind property) is a
+  per-file count of how many participants' data is pooled into that file
+  (e.g. a joint-called VCF spanning several people) — placeholder, not in
+  the ELITE-47 spec, randomly generated in `data/records.ts` skewed toward
+  single-participant files with a long tail of larger pooled ones. Its
+  Results table cell reuses the **same suppression convention** as the
+  aggregate match count above (`isBelowThreshold`/`SUPPRESSION_THRESHOLD`
+  from `query/rounding.ts`, in `formatCell`): a count of 1–19 renders as
+  "<20" rather than the exact number, since a small pooled count is exactly
+  the kind of value that could re-identify someone. Deliberately **plain
+  text, not colored** — unlike the match-count badge's orange `.low-count`
+  treatment, which signals query-level suppression; this is a per-file fact
+  in an ordinary table cell, not a suppressed-state UI element.
 - **The total match count is rounded**, not exact — at or above the
   suppression threshold, it's rounded to the nearest 10
-  (`Math.round(matches.length / 10) * 10`) and prefixed with **"≈"**, with a
-  small orange **"Rounded"** pill next to it (`.results-rounded-badge`,
-  reusing the same `--or`/`--or-soft` orange as the low-count badge). To the
-  count badge's **left**, outside its tinted background (same treatment as
-  the Results Distribution "Why can't I see the counts?" link), a **"How this
-  number was computed" disclosure link** (`.results-count-disclosure`,
-  `.results-count-wrap` holds both) opens the info modal with an explanation —
-  currently **placeholder copy** ("Insert methodology here...") to be
-  replaced with the real methodology later. None of this applies to the two
+  (`Math.round(matches.length / 10) * 10`) and prefixed with **"≈"**. A
+  **"Results approximated." disclosure link** (`.results-count-disclosure`)
+  opens the info modal with an explanation — currently **placeholder copy**
+  ("Insert methodology here...") to be replaced with the real methodology
+  later. It lives **inline inside the "Matching Files" `<h3>` itself**,
+  right after the same count echoed there (`.results-head-count`, e.g.
+  "Matching Files (≈230)"), rather than inside the sticky count badge:
+  it's supplementary explanation for the table below, not part of the
+  always-visible glance value, so it scrolls with the page normally
+  instead of staying pinned along with the badge. `resultsHeadCount` is
+  set alongside `resultsCountNum` in `renderResults()` so the two counts
+  (badge and heading) never disagree; `.results-head-count` is
+  deliberately not bold/colored like the heading text, so it reads as a
+  supplementary figure. Same treatment as the Results Distribution "Why
+  can't I see the counts?" link — a plain
+  text link, not a colored chip. None of this applies to the two
   other count states: exact **0** (not sensitive, shown as-is) or the
   suppressed **"<20"** state (already hides the number entirely, so there's
   nothing further to round). The static toolbar's "SUBJECTS MATCHED (n)"
@@ -296,12 +405,16 @@ input UI:
 ```ts
 type PropertyValue = { id: string; label: string }
 type Property =
-  | { id; label; category: string; kind: 'enum'; ordered: boolean; values: PropertyValue[] }
-  | { id; label; category: string; kind: 'boolean' }     // Yes/No
-  | { id; label; category: string; kind: 'range'; unit?: string } // min/max numbers
-  | { id; label; category: string; kind: 'text' }        // free-text (LIKE)
-  | { id; label; category: string; kind: 'date' }        // MUI X DateField, min/max ISO strings
+  | { id; label; category: string; description?: string; kind: 'enum'; ordered: boolean; values: PropertyValue[] }
+  | { id; label; category: string; description?: string; kind: 'boolean' }     // Yes/No
+  | { id; label; category: string; description?: string; kind: 'range'; unit?: string } // min/max numbers
+  | { id; label; category: string; description?: string; kind: 'text' }        // free-text (LIKE)
+  | { id; label; category: string; description?: string; kind: 'date' }        // MUI X DateField, min/max ISO strings
 ```
+
+`description` is a one-sentence definition shown as the Results table
+column header's hover tooltip (see "Results panel" above) — optional, and
+currently only filled in for the properties actually surfaced as columns.
 
 Every property carries a **`category`** (Demographic & Clinical, Study &
 Cohort Design, Biospecimen, Data Modality, Assessment Availability, Genetic
@@ -368,9 +481,11 @@ resets **all** slots and sets the new kind's default operator
 passes it in, keeping the model ignorant of the schema data.
 
 - Tree edits are pure functions (`setCombinator`, `toggleExclude`, `addChild`,
-  `insertChild`, `removeNode`, `clearGroup`, `setProperty`, `setOp`,
-  `toggleValue`, `setText`, `moveNode`), each rebuilding only the branch that
-  changed.
+  `removeNode`, `clearGroup`, `setProperty`, `setOp`, `toggleValue`,
+  `setText`, `moveNode`), each rebuilding only the branch that changed.
+  `addChild` **prepends** the new condition/group to the front of its
+  parent's children (not appended to the end) — a freshly-added row is
+  always immediately visible without scrolling down a long group.
 - A tiny **observable store** holds the current tree, replaces it wholesale on
   each edit, and notifies subscribers.
 - The UI **fully re-renders** the tree on every change. This is fine at expected
@@ -487,6 +602,10 @@ preserve them.
    top line, right after the AND/OR pill and Exclude toggle — all of a group's
    controls live on one row, so there is no per-group footer. They're
    persistent chrome and must not compete visually with the query content.
+   Both buttons **prepend** the new row to the top of the group rather than
+   appending it at the bottom (`addChild` in `query/model.ts`), so it's
+   immediately visible right under the group's header line instead of
+   requiring a scroll past however many rows already exist.
 
 **Across the whole thing:**
 
