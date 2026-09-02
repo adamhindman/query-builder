@@ -1,7 +1,7 @@
 import { el, clear } from '../dom'
 import { PROPERTIES, getProperty } from '../data/properties'
 import type { Property } from '../data/schema'
-import { RECORDS, type ParticipantRecord } from '../data/records'
+import { RECORDS, type FileRecord } from '../data/records'
 import { filterRecords } from '../query/evaluate'
 import { usedPropertyIds } from '../query/model'
 import type { QueryStore } from '../query/store'
@@ -43,7 +43,7 @@ function loadPlotly(): Promise<typeof import('plotly.js-basic-dist-min')> {
 
 /** One option's rounded count for a given property, computed over `matches`. */
 function countsForProperty(
-  matches: ParticipantRecord[],
+  matches: FileRecord[],
   property: Property,
 ): { label: string; count: number }[] {
   if (property.kind === 'boolean') {
@@ -75,7 +75,7 @@ function countsForProperty(
 }
 
 /** Build (or rebuild) one property's chart into `plotEl`. */
-async function drawChart(plotEl: HTMLElement, property: Property, matches: ParticipantRecord[]): Promise<void> {
+async function drawChart(plotEl: HTMLElement, property: Property, matches: FileRecord[]): Promise<void> {
   const rows = countsForProperty(matches, property)
   // Plotly draws bottom-to-top, so reverse the list to read top-to-bottom
   // the same order the property defines its options in.

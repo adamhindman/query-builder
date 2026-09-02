@@ -101,10 +101,13 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !helpBackdrop.hidden) closeHelp()
 })
 
-/** Show an info modal with a title and arbitrary body content. */
-export function infoModal(title: string, body: HTMLElement): void {
+/** Show an info modal with a title and arbitrary body content. `wide` widens
+    the card for content that needs more room (e.g. a longer bullet list)
+    than the default confirm-modal-matching width comfortably fits. */
+export function infoModal(title: string, body: HTMLElement, opts?: { wide?: boolean }): void {
   helpTitleEl.textContent = title
   helpBodyEl.replaceChildren(body)
+  helpCard.classList.toggle('modal-card-wide', !!opts?.wide)
   helpBackdrop.hidden = false
   helpCloseBtn.focus()
 }

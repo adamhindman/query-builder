@@ -326,7 +326,6 @@ body {
 }
 
 .builder-header {
-  position: relative;
   display: flex;
   align-items: flex-start;
   margin-bottom: 1.25rem;
@@ -344,49 +343,104 @@ body {
   gap: 0.5rem;
 }
 
-/* Small circular "?" button that opens the query builder help modal. */
+/* Visible text button that opens the query builder help modal. Filled with a
+   soft background at rest (not just on hover) so it reads as a discoverable
+   affordance next to the title, rather than blending into the header like a
+   plain icon would. */
 .qb-help-btn {
-  width: 24px;
-  height: 24px;
-  flex: none;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.4rem;
+  height: 30px;
+  flex: none;
+  padding: 0 0.75rem;
   border: none;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--and-soft);
   color: var(--and);
   font-size: 0.82rem;
-  font-weight: 700;
-  line-height: 1;
+  font-weight: 600;
   cursor: pointer;
 }
 .qb-help-btn:hover {
   background: var(--and);
   color: #fff;
 }
+.qb-help-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--and);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.qb-help-btn:hover .qb-help-icon {
+  background: #fff;
+  color: var(--and);
+}
 
-/* Wraps the disclosure link and the count badge in one row, the link sitting
-   outside (to the left of) the badge's tinted background — same treatment
-   as the Characterizations "Why can't I see the counts?" link: a plain text
-   link, not part of the colored chip. */
-.builder-header .results-count-wrap {
-  /* Out of flow — a tall badge here would otherwise push the tree/summary
-     below it down every time it grows (e.g. the disclosure link appearing). */
+/* Zero-height sticky host — see the comment on `resultsCountAnchor` in
+   main.ts for why it lives here (first child of `.content-col`) rather than
+   inside `.builder-header`. `height: 0` keeps it from pushing
+   builderMain/characterizations/results down; `.results-count-wrap` inside
+   it is absolutely positioned so it can render at full size without that
+   size affecting this anchor's (zero) footprint. No explicit `display`
+   here on purpose — this stays plain `display: block`, so toggling the
+   `hidden` attribute (in `applyMode()`) works via the browser's default
+   `[hidden] { display: none }` rule with no override needed (unlike
+   `.sidebar`/`.toolbar-qb-btn`/etc., which set their own `display` and so
+   need one). */
+.results-count-anchor {
+  position: sticky;
+  top: var(--nav-h);
+  height: 0;
+  z-index: 50;
+}
+/* Wraps just the numeric badge (`.results-count`) now — the "Results
+   approximated." disclosure link used to live in here too, but it's
+   supplementary explanation for the table below, not part of the
+   always-visible "how many files matched" glance value, so it moved down
+   to sit next to the "Matching Files" heading instead (see `shell` in
+   main.ts) rather than staying pinned to the viewport along with this. */
+.results-count-wrap {
+  /* Positioned relative to the zero-height anchor above, offset to land
+     near "Cohort Builder": `right` matches `.builder`'s own right padding
+     (1.5rem) so it lines up with the title's right edge; `top` is a fixed
+     1rem rather than matching `.builder`'s 2rem top padding exactly. */
   position: absolute;
-  top: 0;
-  right: 0;
-  display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  gap: 0.6rem;
+  top: 1rem;
+  right: 1.5rem;
+  /* Opaque background so the badge stays legible once this is stuck and
+     scrolled content is passing beneath it, instead of whatever's behind
+     it showing through. */
+  padding: 0.5rem 0.7rem;
+  background: #fff;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0);
+  transition: box-shadow 0.2s ease;
+}
+/* Shadow only once the page has actually scrolled (toggled in main.ts via a
+   `scroll` listener) — at the very top the badge already sits flush with
+   the page, so a shadow there would look like unexplained clutter; it only
+   earns one once it's actually stuck with scrolled content passing beneath
+   it. Animated (not an abrupt on/off) by transitioning the same
+   `box-shadow` property between a transparent and a visible value, rather
+   than adding/removing the box-shadow declaration outright. */
+.results-count-wrap.scrolled {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
 }
 
 /* Match count badge — a soft tint of the site's teal brand color (the same
    #39ac97 used for nav/tab highlights elsewhere), with a bold, oversized
    number so the count itself draws the eye, and a muted label beside it.
    Lightly rounded, not a full pill. */
-.builder-header .results-count {
+.results-count-anchor .results-count {
   display: flex;
   align-items: baseline;
   padding: 0.3rem 0.9rem;
@@ -401,7 +455,7 @@ body {
 }
 /* Draws the eye when the match count changes: a quick grow-then-settle,
    retriggered in JS (main.ts) only when the number actually changes. */
-.builder-header .results-count.pulse {
+.results-count-anchor .results-count.pulse {
   animation: results-count-pulse 0.35s ease-out;
 }
 @keyframes results-count-pulse {
@@ -422,7 +476,7 @@ body {
 }
 /* Below the suppression threshold: the badge turns orange and the number
    itself is replaced with "<20" (never the exact small count) elsewhere. */
-.builder-header .results-count.low-count {
+.results-count-anchor .results-count.low-count {
   background: var(--or-soft);
 }
 .results-count.low-count .results-count-num {
@@ -434,7 +488,9 @@ body {
   color: var(--ink-soft);
 }
 
-/* Sits outside the count badge, to its left; shown only when the count is
+/* Inline inside `.results-hint` (`.results-head`), on the same line as the
+   file/participant explanation text, not next to the sticky count badge —
+   see the comment on `.results-count-wrap`. Shown only when the count is
    actually rounded (not the suppressed "<20" state, not exact 0). */
 .results-count-disclosure {
   border: none;
@@ -1529,9 +1585,46 @@ select:focus-visible {
   font-weight: 700;
   color: var(--ink);
 }
+/* The same count shown in the sticky badge, echoed inline in the heading —
+   deliberately not bold/colored like the heading text, so it reads as a
+   supplementary figure rather than competing with "Matching Files" itself. */
+.results-head-count {
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+/* Clarifies the file-vs-participant distinction — user testing found some
+   people read this table as a list of individuals rather than files. */
+.results-hint {
+  margin: 0.3rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+/* A second, independent horizontal scrollbar above the table (see
+   `resultsScrollbarTop` in main.ts) — a real `overflow-x: auto` element in
+   its own right, not a repositioned copy of the table's own scrollbar (a
+   single scrolling element can only ever render one native scrollbar per
+   axis). `overflow-y: hidden` and a fixed height just tall enough for the
+   scrollbar keep it from showing an empty content box above that
+   scrollbar. Its inner spacer div (below) is what actually gives it
+   something to scroll. */
+.results-scrollbar-top {
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 17px;
+}
+/* Invisible — 1px tall, its only job is to give `.results-scrollbar-top`
+   a scrollable width to match. Sized in JS (`resultsScrollbarTopSpacer.
+   style.width`) to the table's actual rendered `scrollWidth` after every
+   render, since that depends on the columns/content currently shown. */
+.results-scrollbar-top-spacer {
+  height: 1px;
+}
 
 /* Table scrolls horizontally on its own if columns overflow, so the page
-   body never does. */
+   body never does — this is the table's own, independent scrollbar, at its
+   natural position below the table; see `.results-scrollbar-top` above for
+   the second one. */
 .results-table-wrap {
   overflow-x: auto;
 }
@@ -1957,6 +2050,14 @@ select:focus-visible {
   background: var(--surface);
   border-radius: var(--radius);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
+}
+/* 50% wider than the default — for info-modal content that needs more room
+   (e.g. the Cohort Builder help modal's bullet list). Opt-in per call via
+   `infoModal(title, body, { wide: true })`, not a blanket change to every
+   modal (the confirm modal and other info-modal callers stay at the
+   default width). */
+.modal-card-wide {
+  max-width: 570px;
 }
 .modal-title {
   margin: 0 0 0.6rem;

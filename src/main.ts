@@ -61,9 +61,13 @@ const resultsCountNum = el('span', { class: 'results-count-num' })
 const resultsCountLabel = el('span', { class: 'results-count-label' })
 const resultsCountRow = el('span', { class: 'results-count-row' }, resultsCountNum, resultsCountLabel)
 // Explains the rounding above, shown only alongside a rounded (i.e. not
-// suppressed, not zero) count. Sits outside the tinted badge, to its left —
-// a plain text link, same treatment as the Characterizations "Why can't I
-// see the counts?" link.
+// suppressed, not zero) count. Lives next to the "Matching Files" heading
+// above the Results table (see `shell` below) rather than riding along
+// inside the sticky count badge — it's supplementary explanation for the
+// table below it, not part of the always-visible "how many files matched"
+// glance value, so it shouldn't stay pinned to the viewport along with
+// that. Same treatment as the Characterizations "Why can't I see the
+// counts?" link: a plain text link.
 const resultsCountDisclosure = el(
   'button',
   {
@@ -88,17 +92,67 @@ const resultsCountDisclosure = el(
   },
   'Results approximated.',
 )
+// Echoes the same count shown in the sticky badge, but inline in the
+// "Matching Files" heading above the table — set alongside it in
+// renderResults() so the two never disagree.
+const resultsHeadCount = el('span', { class: 'results-head-count' })
 const resultsCount = el('div', { class: 'results-count' }, resultsCountRow)
-const resultsCountWrap = el(
-  'div',
-  { class: 'results-count-wrap' },
-  resultsCountDisclosure,
-  resultsCount,
-)
+const resultsCountWrap = el('div', { class: 'results-count-wrap' }, resultsCount)
+// A zero-height sticky host, placed as the first child of `.content-col`
+// (see `shell` below) so its containing block spans the whole page's main
+// content — not just the short builder-header row. That's what lets it stay
+// genuinely stuck the entire way down the page (past the tree,
+// characterizations, and Results table): a sticky element can only remain
+// stuck while scroll is still passing through its own containing block, and
+// `.content-col` covers that whole span where `.builder-header` alone
+// wouldn't. `resultsCountWrap` is absolutely positioned inside this anchor
+// (see style.css) so its own height doesn't affect layout — the anchor's
+// height:0 means `builderMain`/characterizations/results render exactly as
+// if it weren't there, and the anchor's own resting position (top of
+// `.content-col`, before `.builder`'s top padding) happens to already line
+// up with "Cohort Builder" without any JS measurement needed.
+const resultsCountAnchor = el('div', { class: 'results-count-anchor' }, resultsCountWrap)
+// It only needs a shadow once the page has actually scrolled and there's
+// content passing beneath it to visually separate from; at the very top it
+// already sits flush with the page and a shadow there would look like
+// unexplained clutter. The `.scrolled` class (animated via CSS transition,
+// not toggled abruptly) drives that.
+const SCROLL_SHADOW_THRESHOLD = 4
+let hasScrollShadow = false
+function updateResultsCountShadow(): void {
+  const shouldShow = window.scrollY > SCROLL_SHADOW_THRESHOLD
+  if (shouldShow === hasScrollShadow) return
+  hasScrollShadow = shouldShow
+  resultsCountWrap.classList.toggle('scrolled', shouldShow)
+}
+window.addEventListener('scroll', updateResultsCountShadow, { passive: true })
+updateResultsCountShadow()
 const resultsTable = el('div', { class: 'results-table-wrap' })
 // Sibling of resultsTable, not a child — the pager must stay outside the
 // horizontally-scrolling wrap so it doesn't scroll along with wide tables.
 const resultsPager = el('div', { class: 'results-pager' })
+
+// A second, independent scrollbar above the table, in addition to the
+// table's own (at its natural bottom edge) — so a wide table can be
+// scrolled from either edge without reaching all the way down. A single
+// scrolling element can only ever show one native scrollbar per axis, so
+// this is a genuinely separate `overflow-x: auto` element containing an
+// invisible spacer sized to match the table's actual scrollable width; a
+// `scroll` listener keeps the two in sync in both directions. `syncingScroll`
+// guards against the sync itself re-triggering (setting `scrollLeft` to a
+// value it's already at doesn't fire another `scroll` event in practice,
+// but the guard keeps this robust rather than relying on that).
+const resultsScrollbarTopSpacer = el('div', { class: 'results-scrollbar-top-spacer' })
+const resultsScrollbarTop = el('div', { class: 'results-scrollbar-top' }, resultsScrollbarTopSpacer)
+let syncingScroll = false
+function syncScroll(from: HTMLElement, to: HTMLElement): void {
+  if (syncingScroll) return
+  syncingScroll = true
+  to.scrollLeft = from.scrollLeft
+  syncingScroll = false
+}
+resultsScrollbarTop.addEventListener('scroll', () => syncScroll(resultsScrollbarTop, resultsTable))
+resultsTable.addEventListener('scroll', () => syncScroll(resultsTable, resultsScrollbarTop))
 
 // Live count in the static Explore toolbar (markup lives in index.html).
 const toolbarCount = document.querySelector<HTMLElement>('.toolbar-count')
@@ -212,6 +266,7 @@ const RESULT_COLUMNS = [
   'fileName',
   'dataType',
   'assayType',
+  'participantCount',
   'fileFormat',
   'isMultiSpecimen',
   'isPartOfDataset',
@@ -240,10 +295,13 @@ function headerIcon(svg: string): HTMLElement {
   return span
 }
 
-function headerCell(label: string, ...extras: HTMLElement[]): HTMLElement {
+/** `description`, when given, becomes the header cell's native hover tooltip
+    — the same `title`-attribute mechanism this app already uses for the
+    AND/OR pill and other tooltips elsewhere, not a custom tooltip widget. */
+function headerCell(label: string, description: string | undefined, ...extras: HTMLElement[]): HTMLElement {
   return el(
     'th',
-    {},
+    { title: description },
     el(
       'div',
       { class: 'th-inner' },
@@ -283,6 +341,12 @@ function formatCell(propertyId: string, value: RecordValue): string {
   }
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   if (propertyId === 'fileSizeBytes' && typeof value === 'number') return formatBytes(value)
+  // Same suppression convention as the aggregate match count: a small
+  // nonzero value is small enough to risk re-identifying someone, so it's
+  // shown only as "<20" rather than the exact count.
+  if (propertyId === 'participantCount' && typeof value === 'number' && isBelowThreshold(value)) {
+    return `<${SUPPRESSION_THRESHOLD}`
+  }
   return String(value)
 }
 
@@ -352,7 +416,7 @@ document.addEventListener('keydown', (e) => {
 // "browse" view and Query Builder mode.
 function openHelpModal(): void {
   infoModal(
-    'How the query builder works',
+    'How to Use Cohort Builder',
     el(
       'ul',
       { class: 'modal-list' },
@@ -360,8 +424,9 @@ function openHelpModal(): void {
       el('li', {}, 'Add ', el('strong', {}, 'NOT'), ' to a condition group to exclude everything inside it; for a single condition, use the "is none of" operator instead.'),
       el('li', {}, 'A ', el('strong', {}, 'condition'), ' filters one property — click its property, operator, or values to change them.'),
       el('li', {}, el('strong', {}, 'Drag'), ' rows to reorder them or move them into a different condition group; moving into a different condition group changes the logic.'),
-      el('li', {}, 'The ', el('strong', {}, 'Query Summary'), ' sentence below the tree always shows the whole query in plain English.'),
+      el('li', {}, 'The ', el('strong', {}, 'Query Summary'), ' section above the tree always shows the whole query in plain English or SQL.'),
     ),
+    { wide: true },
   )
 }
 
@@ -370,10 +435,11 @@ const qbHelpBtn = el(
   {
     type: 'button',
     class: 'qb-help-btn',
-    'aria-label': 'How the query builder works',
+    'aria-label': 'How to Use Cohort Builder',
     onclick: openHelpModal,
   },
-  '?',
+  el('span', { class: 'qb-help-icon', 'aria-hidden': 'true' }, '?'),
+  'How to Use Cohort Builder',
 )
 
 const builderTop = el(
@@ -383,7 +449,6 @@ const builderTop = el(
     'header',
     { class: 'builder-header' },
     el('div', { class: 'builder-title-group' }, el('h1', {}, 'Cohort Builder'), qbHelpBtn),
-    resultsCountWrap,
   ),
   exampleQueries,
   el(
@@ -414,12 +479,23 @@ const characterizations = renderCharacterizations(store)
 const shell = el(
   'div',
   { class: 'content-col' },
+  resultsCountAnchor,
   builderMain,
   characterizations,
   el(
     'section',
     { class: 'results' },
-    el('div', { class: 'results-head' }, el('h3', {}, 'Results')),
+    el(
+      'div',
+      { class: 'results-head' },
+      el('h3', {}, 'Matching Files ', resultsHeadCount, ' ', resultsCountDisclosure),
+      el(
+        'p',
+        { class: 'results-hint' },
+        'Each row is a file that contains data from at least one matching participant — not a list of individual participants.',
+      ),
+    ),
+    resultsScrollbarTop,
     resultsTable,
     resultsPager,
   ),
@@ -446,6 +522,10 @@ const toolbarHideBtn = document.querySelector<HTMLButtonElement>('.toolbar-hide'
 function applyMode(): void {
   facetSidebar.hidden = mode !== 'browse'
   builderMain.hidden = mode !== 'builder'
+  // The count badge reads as part of the "Cohort Builder" header, so it's
+  // only shown alongside the rest of the builder — same as before it moved
+  // out of builderMain's own subtree for sticky positioning purposes.
+  resultsCountAnchor.hidden = mode !== 'builder'
   // "Hide Filters" only makes sense in the facet-mockup browse view — there's
   // no filter sidebar to hide while the Query Builder is in view.
   if (toolbarHideBtn) toolbarHideBtn.hidden = mode === 'builder'
@@ -540,7 +620,8 @@ function renderResults(): void {
   const isRounded = !belowThreshold && matches.length > 0
   const displayCount = approximateCount(matches.length)
   resultsCountNum.textContent = displayCount
-  resultsCountLabel.textContent = 'matches'
+  resultsCountLabel.textContent = 'Matching Files'
+  resultsHeadCount.textContent = `(${displayCount})`
   // Characterizations' per-value bar charts would be even more identifying
   // than the plain match count at this size, so hide the whole section
   // rather than let its own (already-rounded) bars imply a precision the
@@ -555,6 +636,7 @@ function renderResults(): void {
   clear(resultsTable)
   clear(resultsPager)
   resultsPager.hidden = true
+  resultsScrollbarTop.hidden = true
   if (matches.length === 0) {
     resultsPage = 0
     resultsTable.appendChild(el('p', { class: 'results-empty' }, 'No participants match this query.'))
@@ -579,6 +661,7 @@ function renderResults(): void {
     return
   }
   resultsPager.hidden = false
+  resultsScrollbarTop.hidden = false
 
   const pageCount = Math.ceil(matches.length / PAGE_SIZE)
   resultsPage = Math.min(Math.max(resultsPage, 0), pageCount - 1) // clamp to range
@@ -596,10 +679,12 @@ function renderResults(): void {
           'tr',
           {},
           el('th', { class: 'th-check' }),
-          headerCell('Syn ID', headerIcon(HELP_SVG)),
+          headerCell('Syn ID', 'A unique Synapse-style identifier for this file.', headerIcon(HELP_SVG)),
           ...RESULT_COLUMNS.map((id) => {
             const th = headerCell(
               getProperty(id)?.label ?? id,
+              getProperty(id)?.description,
+              headerIcon(HELP_SVG),
               ...(id === 'specimenType' ? [headerIcon(FILTER_SVG)] : []),
             )
             if (isNumericColumn(id)) th.classList.add('num')
@@ -636,6 +721,11 @@ function renderResults(): void {
       ),
     ),
   )
+  // Match the top scrollbar's scrollable range to the table actually
+  // rendered — the spacer has no visible content of its own, so its width
+  // is the only thing determining how far the top scrollbar can scroll.
+  resultsScrollbarTopSpacer.style.width = `${resultsTable.scrollWidth}px`
+  resultsScrollbarTop.scrollLeft = resultsTable.scrollLeft
 
   const goto = (page: number) => {
     resultsPage = page

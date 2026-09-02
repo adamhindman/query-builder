@@ -1,6 +1,6 @@
 import type { Condition, Group, Node } from './model'
 import { getProperty } from '../data/properties'
-import type { ParticipantRecord, RecordValue } from '../data/records'
+import type { FileRecord, RecordValue } from '../data/records'
 
 /**
  * Decide whether a record matches the query tree. This is the runtime twin of
@@ -13,7 +13,7 @@ import type { ParticipantRecord, RecordValue } from '../data/records'
  * than breaking. So the startup query (one blank condition) matches everyone.
  */
 
-export function matchesGroup(record: ParticipantRecord, group: Group): boolean {
+export function matchesGroup(record: FileRecord, group: Group): boolean {
   if (group.children.length === 0) return true // empty group constrains nothing
   const results = group.children.map((child) => matchesNode(record, child))
   const res =
@@ -21,7 +21,7 @@ export function matchesGroup(record: ParticipantRecord, group: Group): boolean {
   return group.exclude ? !res : res
 }
 
-function matchesNode(record: ParticipantRecord, node: Node): boolean {
+function matchesNode(record: FileRecord, node: Node): boolean {
   return node.kind === 'group' ? matchesGroup(record, node) : matchesCondition(record, node)
 }
 
@@ -33,7 +33,7 @@ function hasValue(value: RecordValue): boolean {
   return true
 }
 
-function matchesCondition(record: ParticipantRecord, cond: Condition): boolean {
+function matchesCondition(record: FileRecord, cond: Condition): boolean {
   if (!cond.propertyId) return true // no property chosen → no constraint
   const property = getProperty(cond.propertyId)
   if (!property) return true
@@ -114,13 +114,13 @@ function matchesCondition(record: ParticipantRecord, cond: Condition): boolean {
 }
 
 /** Count records matching the query. */
-export function countMatches(records: ParticipantRecord[], group: Group): number {
+export function countMatches(records: FileRecord[], group: Group): number {
   let n = 0
   for (const r of records) if (matchesGroup(r, group)) n++
   return n
 }
 
 /** The matching records (all of them; the UI slices for its preview). */
-export function filterRecords(records: ParticipantRecord[], group: Group): ParticipantRecord[] {
+export function filterRecords(records: FileRecord[], group: Group): FileRecord[] {
   return records.filter((r) => matchesGroup(r, group))
 }

@@ -27,6 +27,10 @@ type PropertyBase = {
   label: string
   /** Sidebar grouping label (e.g. "Demographic & Clinical"). */
   category: string
+  /** One-sentence definition, shown as a hover tooltip on Results table
+      column headers. Optional — only properties actually surfaced as a
+      column currently have one. */
+  description?: string
 }
 
 export type EnumProperty = PropertyBase & {
