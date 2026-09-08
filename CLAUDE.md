@@ -121,8 +121,11 @@ shows live results, so the query does something, not just render.
   (not fully pill-shaped) chip tinted with the site's teal brand color
   (`#39ac97`, the same one used for nav/tab highlights), showing a large
   bold number (`.results-count-num`) next to a smaller muted label
-  (`.results-count-label`) reading **"Matching Files"** — the same wording
-  as the Results table's own heading below, for consistency. The
+  (`.results-count-label`) reading **"Matching Subjects"** — deliberately
+  different wording from the Results table's own heading below: the badge
+  is read as "how many participants does this query reach," while the table
+  itself (and its heading) is about matching *files*, which can be pooled
+  across multiple participants — see "Participant Count" below. The
   **"Matching Files"** heading above the table (named that rather than a
   generic "Results" to reinforce the file/participant distinction below) is a
   plain, uncounted H3 — the count doesn't appear twice. A small **muted

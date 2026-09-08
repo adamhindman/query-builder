@@ -602,6 +602,11 @@ function updateCharacterizationsVisibility(): void {
 
 function renderResults(): void {
   const matches = filterRecords(RECORDS, store.get())
+  // A subject's files are spread across the table, so distinct subjects
+  // among the matches is always ≤ matches.length — usually meaningfully
+  // less, since most subject-level filters keep every file of a matching
+  // subject. See data/records.ts's subjectId linkage.
+  const subjectsCount = new Set(matches.map((r) => r.subjectId)).size
   if (matches.length !== lastMatchCount) {
     lastMatchCount = matches.length
     // Restart the CSS animation: removing the class, forcing a reflow (the
@@ -615,13 +620,17 @@ function renderResults(): void {
   // only as "<20", never the exact (identifying) small number. Above the
   // threshold, the count itself is never exact either — it's rounded to the
   // nearest 10 and marked "≈", with a disclosure link explaining why
-  // (placeholder methodology for now).
-  const belowThreshold = isBelowThreshold(matches.length)
+  // (placeholder methodology for now). Gated on the *subject* count, not the
+  // file count — subjects is always the smaller (more re-identifying) of
+  // the two, so it's the one that actually determines whether this cohort
+  // is too small to show.
+  const belowThreshold = isBelowThreshold(subjectsCount)
   const isRounded = !belowThreshold && matches.length > 0
-  const displayCount = approximateCount(matches.length)
-  resultsCountNum.textContent = displayCount
-  resultsCountLabel.textContent = 'Matching Files'
-  resultsHeadCount.textContent = `(${displayCount})`
+  const subjectsDisplayCount = approximateCount(subjectsCount)
+  const filesDisplayCount = approximateCount(matches.length)
+  resultsCountNum.textContent = subjectsDisplayCount
+  resultsCountLabel.textContent = 'Matching Subjects'
+  resultsHeadCount.textContent = `(${filesDisplayCount})`
   // Characterizations' per-value bar charts would be even more identifying
   // than the plain match count at this size, so hide the whole section
   // rather than let its own (already-rounded) bars imply a precision the
@@ -631,7 +640,7 @@ function renderResults(): void {
   resultsCount.classList.toggle('low-count', belowThreshold)
   resultsCountDisclosure.hidden = !isRounded
 
-  if (toolbarCount) toolbarCount.textContent = displayCount
+  if (toolbarCount) toolbarCount.textContent = subjectsDisplayCount
 
   clear(resultsTable)
   clear(resultsPager)
