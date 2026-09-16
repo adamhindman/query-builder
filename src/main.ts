@@ -2,6 +2,7 @@ import './style.css'
 import { el, clear } from './dom'
 import { QueryStore } from './query/store'
 import { defaultQuery, usedPropertyIds } from './query/model'
+import type { Group } from './query/model'
 import { PRESETS, getPreset } from './query/presets'
 import { renderTree, alignBrackets } from './ui/render'
 import { renderFacetSidebar } from './ui/facetSidebar'
@@ -19,14 +20,21 @@ const app = document.querySelector<HTMLDivElement>('#app')!
 
 const store = new QueryStore(defaultQuery())
 
+// Results (count, table, characterizations) don't react to every keystroke —
+// only the Query Summary and the tree itself do. `appliedStore` holds the
+// tree that's actually been "Applied"; it starts equal (by reference) to
+// `store`'s own initial tree, so the Apply button starts non-dirty. Clicking
+// Apply copies the live tree's current reference into it.
+const appliedStore = new QueryStore(store.get())
+
 // Persistent shell: header + tree mount + summary. Only the inner regions
 // are re-rendered on state change.
 const treeMount = el('div', { class: 'tree-mount' })
 const summaryText = el('p', { class: 'summary-text' })
 
-// The summary can read as plain English or as SQL — a pill switcher next to
-// "Reads as" picks the view. Local UI state, not query state: it lives here
-// in the persistent shell, untouched by tree re-renders.
+// The summary can read as a plain-English sentence or as SQL — a pill
+// switcher next to "Reads as" picks the view. Local UI state, not query
+// state: it lives here in the persistent shell, untouched by tree re-renders.
 let summaryMode: 'plain' | 'sql' = 'plain'
 
 const makeViewBtn = (mode: typeof summaryMode, label: string): HTMLElement =>
@@ -40,7 +48,7 @@ const makeViewBtn = (mode: typeof summaryMode, label: string): HTMLElement =>
     },
     label,
   )
-const plainBtn = makeViewBtn('plain', 'Plain English')
+const plainBtn = makeViewBtn('plain', 'Summary')
 const sqlBtn = makeViewBtn('sql', 'SQL')
 
 function setSummaryMode(mode: typeof summaryMode): void {
@@ -350,6 +358,15 @@ function formatCell(propertyId: string, value: RecordValue): string {
   return String(value)
 }
 
+// Whole-tree replacements (loading a preset, Clear all, the browse/builder
+// switch's confirm-reset) are a single decisive action, not an in-progress
+// edit — unlike condition-by-condition editing, these still take effect on
+// Results immediately, without waiting for a separate Apply click.
+function replaceQuery(tree: Group): void {
+  store.update(() => tree)
+  appliedStore.update(() => tree)
+}
+
 const presetSelect = el(
   'select',
   {
@@ -358,7 +375,7 @@ const presetSelect = el(
     onchange: (e: Event) => {
       const target = e.target as HTMLSelectElement
       const preset = getPreset(target.value)
-      if (preset) store.update(() => preset.build())
+      if (preset) replaceQuery(preset.build())
     },
   },
   el('option', { value: '', disabled: true, selected: true }, 'Select a query'),
@@ -386,7 +403,7 @@ const clearBtn = el(
   {
     type: 'button',
     class: 'clear-btn',
-    onclick: () => store.update(() => defaultQuery()),
+    onclick: () => replaceQuery(defaultQuery()),
   },
   'Clear all',
 )
@@ -425,6 +442,7 @@ function openHelpModal(): void {
       el('li', {}, 'A ', el('strong', {}, 'condition'), ' filters one property — click its property, operator, or values to change them.'),
       el('li', {}, el('strong', {}, 'Drag'), ' rows to reorder them or move them into a different condition group; moving into a different condition group changes the logic.'),
       el('li', {}, 'The ', el('strong', {}, 'Query Summary'), ' section above the tree always shows the whole query in plain English or SQL.'),
+      el('li', {}, 'Click ', el('strong', {}, 'Update Results'), ' below the tree to run your edits against the results — Results and Results Distribution update then, not while you’re still editing.'),
     ),
     { wide: true },
   )
@@ -441,6 +459,31 @@ const qbHelpBtn = el(
   el('span', { class: 'qb-help-icon', 'aria-hidden': 'true' }, '?'),
   'How to Use Cohort Builder',
 )
+
+// Edits to the tree (add/remove/reorder/change a condition) no longer flow
+// straight through to Results/Results Distribution — the user has to click
+// Apply. Dirty is just "does the live tree differ (by reference) from the
+// tree Results was last built from" — every model edit returns a new object,
+// so reference equality is enough; no deep-diffing needed.
+const applyBtn = el(
+  'button',
+  {
+    type: 'button',
+    class: 'apply-btn',
+    onclick: () => appliedStore.update(() => store.get()),
+  },
+  'Update Results',
+) as HTMLButtonElement
+const applyBtnRow = el('div', { class: 'apply-btn-row' }, applyBtn)
+
+function updateApplyButton(): void {
+  const dirty = store.get() !== appliedStore.get()
+  applyBtn.classList.toggle('dirty', dirty)
+  applyBtn.disabled = !dirty
+  applyBtn.title = dirty
+    ? ''
+    : 'Add a condition with the "+ Condition" button, or edit an existing one, then click this button to update the results.'
+}
 
 const builderTop = el(
   'div',
@@ -468,13 +511,14 @@ const builderTop = el(
     summaryText,
   ),
   treeMount,
+  applyBtnRow,
 )
 
 // The results panel (and characterizations, below) span the full remaining
 // browser width (unconstrained by the builder's centered max-width), so
 // they live outside `.builder` in its own flex column alongside it.
 const builderMain = el('main', { class: 'builder' }, builderTop)
-const characterizations = renderCharacterizations(store)
+const characterizations = renderCharacterizations(appliedStore)
 
 const shell = el(
   'div',
@@ -553,7 +597,7 @@ qbToggleBtn?.addEventListener('click', async () => {
       confirmLabel: 'Switch to filter view',
     })
     if (!ok) return
-    store.update(() => defaultQuery())
+    replaceQuery(defaultQuery())
   }
   mode = mode === 'browse' ? 'builder' : 'browse'
   applyMode()
@@ -601,7 +645,7 @@ function updateCharacterizationsVisibility(): void {
 }
 
 function renderResults(): void {
-  const matches = filterRecords(RECORDS, store.get())
+  const matches = filterRecords(RECORDS, appliedStore.get())
   // A subject's files are spread across the table, so distinct subjects
   // among the matches is always ≤ matches.length — usually meaningfully
   // less, since most subject-level filters keep every file of a matching
@@ -780,18 +824,28 @@ function render(): void {
   treeMount.appendChild(renderTree(store))
   alignBrackets(treeMount)
   renderSummary()
-  // A query change is a new result set — jump back to the first page (pager
-  // clicks call renderResults directly and keep their page) and drop any
-  // batch selection, since the ids it references may no longer even be in
-  // the result set.
+  updateApplyButton()
+}
+
+// Results (count, table, Results Distribution) only reflect the tree once
+// it's been Applied — a separate subscription on `appliedStore`, so editing
+// a condition doesn't itself trigger this.
+function renderApplied(): void {
+  // A newly-applied query is a new result set — jump back to the first page
+  // (pager clicks call renderResults directly and keep their page) and drop
+  // any batch selection, since the ids it references may no longer even be
+  // in the result set.
   resultsPage = 0
   selectedIds.clear()
   updateBatchToolbar()
   renderResults()
+  updateApplyButton()
 }
 
 store.subscribe(render)
+appliedStore.subscribe(renderApplied)
 render()
+renderApplied()
 
 // Bracket heights depend on laid-out child sizes, which change with width.
 // Observe the tree mount itself (not the window): when embedded in a host

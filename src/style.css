@@ -34,6 +34,9 @@
   --or-soft: var(--orange-50);
   --exclude: var(--red);
   --exclude-soft: var(--red-bg);
+  --apply-dirty: #3e8379; /* success green — distinct from the AND/OR/NOT
+                              and #39ac97 brand-teal colors already in use,
+                              so "unapplied changes" reads as its own signal */
 
   --radius: 10px;
   --radius-sm: 7px;
@@ -526,6 +529,43 @@ body {
 }
 .clear-btn:hover {
   color: var(--exclude);
+}
+
+/* Applies the live tree to Results/Results Distribution — those don't react
+   to every edit the way the tree and Query Summary do. Right-aligned under
+   the tree, quiet grey at rest (matching the other head-row buttons); once
+   there's an unapplied edit it switches to a solid, filled green so the
+   pending change is unmistakable rather than something to notice on hover. */
+.apply-btn-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.6rem;
+}
+.apply-btn {
+  border: none;
+  border-radius: 6px;
+  height: 30px;
+  padding: 0 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--gray-100);
+  color: var(--ink-soft);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.apply-btn:disabled {
+  cursor: not-allowed;
+  color: var(--ink-faintest);
+}
+.apply-btn:hover:not(:disabled) {
+  background: var(--gray-200);
+}
+.apply-btn.dirty {
+  background: var(--apply-dirty);
+  color: #fff;
+}
+.apply-btn.dirty:hover {
+  background: color-mix(in srgb, var(--apply-dirty) 85%, black);
 }
 
 /* ---------- Faceted-filter sidebar mockup (non-functional placeholder) ---------- */
