@@ -52,6 +52,29 @@ function group(combinator: Group['combinator'], exclude: boolean, children: Node
   return { ...newGroup(combinator), exclude, children }
 }
 
+// `age` is enum-kind (5-year bins, see `data/properties.ts`), not a number —
+// these presets want "N and older", so list every bin from N up through the
+// open-ended 90+ top bin.
+const AGE_BIN_IDS_ASC = [
+  'age_40_44',
+  'age_45_49',
+  'age_50_54',
+  'age_55_59',
+  'age_60_64',
+  'age_65_69',
+  'age_70_74',
+  'age_75_79',
+  'age_80_84',
+  'age_85_89',
+  'age_90_plus',
+]
+
+/** Every age bin id from `minAge` (rounded down to its bin) through 90+. */
+function ageAtLeast(minAge: number): string[] {
+  const start = Math.floor(minAge / 5) * 5
+  return AGE_BIN_IDS_ASC.filter((id) => id === 'age_90_plus' || Number(id.split('_')[1]) >= start)
+}
+
 export type Preset = {
   id: string
   label: string
@@ -95,7 +118,7 @@ export const PRESETS: Preset[] = [
     build: () =>
       group('AND', false, [
         cond('apoeGenotype', 'any', ['e3_e4', 'e4_e4']),
-        cmpCond('age', 'gte', 75),
+        cond('age', 'any', ageAtLeast(75)),
         cond('diagnosis', 'any', ['alzheimers', 'mci', 'parkinsons']),
       ]),
   },
@@ -119,7 +142,7 @@ export const PRESETS: Preset[] = [
     build: () =>
       group('AND', false, [
         cond('cohort', 'any', ['llfs', 'centenarian']),
-        cmpCond('age', 'gte', 90),
+        cond('age', 'any', ageAtLeast(90)),
         boolCond('mortalityStatus', false),
       ]),
   },
@@ -184,12 +207,12 @@ export const PRESETS: Preset[] = [
   {
     id: 'matched-controls',
     label: 'Matched female controls across cohorts',
-    // Mixes every input kind: enum, boolean, range (including age), nested OR of
-    // AND groups, plus an excluded comorbidity group.
+    // Mixes every input kind: enum (including age), boolean, range, nested OR
+    // of AND groups, plus an excluded comorbidity group.
     build: () =>
       group('AND', false, [
         cond('sex', 'any', ['female']),
-        cmpCond('age', 'gte', 80),
+        cond('age', 'any', ageAtLeast(80)),
         group('OR', false, [
           group('AND', false, [
             cond('cohort', 'any', ['llfs']),

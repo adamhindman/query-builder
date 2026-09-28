@@ -319,15 +319,14 @@ shows live results, so the query does something, not just render.
   `cohort`, `countryCode`, and `apoeGenotype` are considered sensitive
   quasi-identifiers. One more was called out by name but doesn't exist as a
   distinct property in the current schema — "Diagnosis Macro" (a coarser
-  grouping of `diagnosis` that isn't modeled yet). `age` is a plain numeric
-  (`range`-kind) field, not enum-valued, so unlike the others it doesn't get
-  per-value counts via the Results Distribution charts below (only
-  enum/boolean properties are offered there — see "Results Distribution").
-  Per-value result counts for the rest of these fields (and any other
-  enum/boolean property) **are** now shown, via those bar charts — and are
-  rounded the same way the backend design doc's `FacetPostProcessor`
-  framework (ROUNDING / NOISE, §4.5–4.7) protects facet statistics, using
-  this app's own `query/rounding.ts` rather than a per-field allowlist (every
+  grouping of `diagnosis` that isn't modeled yet). Per-value result counts
+  for these fields (and any other enum/boolean property) are shown via the
+  Results Distribution bar charts below (only enum/boolean properties are
+  offered there — see "Results Distribution"; `age` qualifies since it's
+  itself enum-kind, its options being 5-year bins), and are rounded the same
+  way the backend design doc's `FacetPostProcessor` framework (ROUNDING /
+  NOISE, §4.5–4.7) protects facet statistics, using this app's own
+  `query/rounding.ts` rather than a per-field allowlist (every
   characterizable property is rounded, sensitive or not — simpler, and
   no less protective).
 - The match-count badge **pulses** (a quick CSS scale-up-then-settle,
@@ -672,7 +671,10 @@ rebuilt (`picker.refresh`) after every add/remove so a property already
 charted drops out of the list. Only **enum** and **boolean** properties are
 offered — they're the only kinds with a fixed, discrete set of "options" a
 bar can represent; range/text properties have no such options and are left
-out of the picker entirely. Each added chart gets a small "✕" to remove it;
+out of the picker entirely. **Age is itself enum-kind** (see "Data contract"
+below) rather than a plain number, specifically so it gets characterized
+this way with no special-casing needed in `ui/characterizations.ts`. Each
+added chart gets a small "✕" to remove it;
 charts re-render (via `store.subscribe`) whenever the query changes, since
 they characterize the *current* result set. Unlike the Results panel below
 it, the section has its own **border + padding + radius**
@@ -692,17 +694,11 @@ edge-to-edge) Results table.
   first). Re-showing is automatic — the moment the count rises back to or
   above the threshold, the section reappears with whatever charts were
   already selected still in place (they're never cleared, only hidden).
-- **Auto-added once, on the first characterizable property picked.** The
-  moment any condition gets a property assigned (typically the tree's
-  blank starter condition — its first-ever pick) and no characterization
-  has been added yet, a chart for that property appears automatically
-  (`maybeAutoAdd` in `renderCharacterizations`), so the section demonstrates
-  itself instead of sitting empty until someone finds the dropdown. Gated
-  by a one-time `autoAdded` flag — it fires exactly once per page load and
-  does **not** re-fire if the user removes every chart afterward (that
-  would fight a deliberate "clear this" action). If the first property
-  picked isn't characterizable (a range/text kind), nothing is added until
-  a characterizable one appears.
+- **Charts only ever appear when explicitly picked from the "Show
+  distribution of…" dropdown.** Setting/changing a condition's property
+  (including the tree's blank starter condition) never adds a chart on its
+  own — the section starts and stays empty until the user picks a variable
+  themselves.
 - **No chart ever shows an exact count — this is the entire point of the
   feature.** There's no per-bar label at all, only the X axis's own scale
   (see below) — a design choice to keep the *only* place a number appears

@@ -3,7 +3,6 @@ import { PROPERTIES, getProperty } from '../data/properties'
 import type { Property } from '../data/schema'
 import { RECORDS, type FileRecord } from '../data/records'
 import { filterRecords } from '../query/evaluate'
-import { usedPropertyIds } from '../query/model'
 import type { QueryStore } from '../query/store'
 import { approximateCountValue } from '../query/rounding'
 import type * as Plotly from 'plotly.js'
@@ -22,7 +21,10 @@ import type * as Plotly from 'plotly.js'
  * ticks never land on an exact value either.
  *
  * Only enum and boolean properties have discrete "options" a bar can
- * represent — range/text properties are left out of the picker.
+ * represent — range/text properties are left out of the picker. (Age is
+ * itself enum-kind, its options being 5-year bins — see `data/properties.ts`
+ * — so it's characterizable via the ordinary enum path, no special-casing
+ * needed here.)
  */
 
 function isCharacterizable(p: Property): boolean {
@@ -227,27 +229,7 @@ export function renderCharacterizations(store: QueryStore): HTMLElement {
     renderAll()
   }
 
-  // One-time onboarding nudge: the moment the user picks a property for a
-  // condition (typically the tree's first, blank-by-default one) and no
-  // characterization has been added yet, show a chart for it automatically
-  // — so the section demonstrates itself instead of staying empty until
-  // the user finds the "+" dropdown. Only fires once, ever; removing every
-  // chart afterward doesn't bring it back (that would fight the user).
-  let autoAdded = false
-  function maybeAutoAdd(): void {
-    if (autoAdded || selectedIds.length > 0) return
-    for (const propertyId of usedPropertyIds(store.get())) {
-      const property = getProperty(propertyId)
-      if (property && isCharacterizable(property)) {
-        autoAdded = true
-        selectedIds.push(propertyId)
-        return
-      }
-    }
-  }
-
   function renderAll(): void {
-    maybeAutoAdd()
     emptyNote.hidden = selectedIds.length > 0
     const matches = filterRecords(RECORDS, store.get())
     clear(chartsWrap)

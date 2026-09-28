@@ -109,7 +109,6 @@ function genValue(property: Property, rand: () => number, index: number): Record
       if (rand() < MISSING) return null
       if (property.id === 'visitCode') return 1 + Math.floor(rand() * 5) // small visit count
       if (property.id === 'fileSizeBytes') return 1_000_000 + Math.floor(rand() * 29_999_000_000) // ~1MB–30GB
-      if (property.id === 'age') return 40 + Math.floor(rand() * 66) // 40–105, skews toward the cohort's elderly focus
       if (property.id === 'participantCount') {
         // Mostly pooled multi-sample files, with a smaller share of small
         // single-/few-participant files — most rows show an exact number,
