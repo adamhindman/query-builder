@@ -52,24 +52,15 @@ function group(combinator: Group['combinator'], exclude: boolean, children: Node
   return { ...newGroup(combinator), exclude, children }
 }
 
-// `age` is enum-kind (5-year bins, see `data/properties.ts`), not a number —
-// these presets want "N and older", so list every bin from N up through the
-// open-ended 90+ top bin.
-const AGE_BIN_IDS_ASC = [
-  'age_40_44',
-  'age_45_49',
-  'age_50_54',
-  'age_55_59',
-  'age_60_64',
-  'age_65_69',
-  'age_70_74',
-  'age_75_79',
-  'age_80_84',
-  'age_85_89',
-  'age_90_plus',
-]
+// `age` is enum-kind (an open-ended <70 bucket, then 5-year bins from 70,
+// see `data/properties.ts`), not a number — these presets want "N and
+// older", so list every bin from N up through the open-ended 90+ top bin.
+const AGE_BIN_IDS_ASC = ['age_lt_70', 'age_70_74', 'age_75_79', 'age_80_84', 'age_85_89', 'age_90_plus']
 
-/** Every age bin id from `minAge` (rounded down to its bin) through 90+. */
+/** Every age bin id from `minAge` (rounded down to its bin) through 90+.
+    `age_lt_70`'s non-numeric id segment always fails the `>= start`
+    comparison below, so it's naturally excluded — every preset caller here
+    asks for 70+ anyway. */
 function ageAtLeast(minAge: number): string[] {
   const start = Math.floor(minAge / 5) * 5
   return AGE_BIN_IDS_ASC.filter((id) => id === 'age_90_plus' || Number(id.split('_')[1]) >= start)

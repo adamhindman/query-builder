@@ -36,16 +36,12 @@ export const PROPERTIES: Property[] = [
     category: 'Demographic & Clinical',
     kind: 'enum',
     ordered: true,
-    // 5-year buckets, 40–89, with everything 90 and older collapsed into
-    // one final open-ended bucket — the cohort skews elderly (see
-    // `data/records.ts`), so bins below 40 would never be populated.
+    // Everything under 70 collapses into one open-ended low bucket (the
+    // cohort skews elderly — see `data/records.ts` — so finer bins below 70
+    // would barely be populated); 70 and up is 5-year buckets, with
+    // everything 90 and older collapsed into one final open-ended bucket.
     values: [
-      { id: 'age_40_44', label: '40–44' },
-      { id: 'age_45_49', label: '45–49' },
-      { id: 'age_50_54', label: '50–54' },
-      { id: 'age_55_59', label: '55–59' },
-      { id: 'age_60_64', label: '60–64' },
-      { id: 'age_65_69', label: '65–69' },
+      { id: 'age_lt_70', label: '<70' },
       { id: 'age_70_74', label: '70–74' },
       { id: 'age_75_79', label: '75–79' },
       { id: 'age_80_84', label: '80–84' },

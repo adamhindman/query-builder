@@ -323,7 +323,7 @@ shows live results, so the query does something, not just render.
   for these fields (and any other enum/boolean property) are shown via the
   Results Distribution bar charts below (only enum/boolean properties are
   offered there — see "Results Distribution"; `age` qualifies since it's
-  itself enum-kind, its options being 5-year bins), and are rounded the same
+  itself enum-kind, its options being age bins), and are rounded the same
   way the backend design doc's `FacetPostProcessor` framework (ROUNDING /
   NOISE, §4.5–4.7) protects facet statistics, using this app's own
   `query/rounding.ts` rather than a per-field allowlist (every
