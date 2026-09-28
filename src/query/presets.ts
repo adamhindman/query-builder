@@ -52,18 +52,45 @@ function group(combinator: Group['combinator'], exclude: boolean, children: Node
   return { ...newGroup(combinator), exclude, children }
 }
 
-// `age` is enum-kind (an open-ended <70 bucket, then 5-year bins from 70,
-// see `data/properties.ts`), not a number — these presets want "N and
-// older", so list every bin from N up through the open-ended 90+ top bin.
-const AGE_BIN_IDS_ASC = ['age_lt_70', 'age_70_74', 'age_75_79', 'age_80_84', 'age_85_89', 'age_90_plus']
+// `age` is enum-kind — 5-year bins starting at 1, with everything 90+
+// collapsed into one open-ended top bin (see `data/properties.ts`), not a
+// number — these presets want "N and older", so list every bin from N up
+// through that open-ended 90+ top bin.
+const AGE_BIN_IDS_ASC = [
+  'age_1_5',
+  'age_6_10',
+  'age_11_15',
+  'age_16_20',
+  'age_21_25',
+  'age_26_30',
+  'age_31_35',
+  'age_36_40',
+  'age_41_45',
+  'age_46_50',
+  'age_51_55',
+  'age_56_60',
+  'age_61_65',
+  'age_66_70',
+  'age_71_75',
+  'age_76_80',
+  'age_81_85',
+  'age_86_89',
+  'age_90_plus',
+]
 
-/** Every age bin id from `minAge` (rounded down to its bin) through 90+.
-    `age_lt_70`'s non-numeric id segment always fails the `>= start`
-    comparison below, so it's naturally excluded — every preset caller here
-    asks for 70+ anyway. */
+/** A bin id's starting age — `age_90_plus` reads as 90, everything else is
+    the number right after `age_` in the id (e.g. `age_71_75` → 71). */
+function binStart(id: string): number {
+  return id === 'age_90_plus' ? 90 : Number(id.split('_')[1])
+}
+
+/** Every age bin id from the bin containing `minAge` through 90+ — an
+    approximation, since a threshold that doesn't land on a bin boundary
+    (e.g. 75, which falls inside `age_71_75`) pulls in a few younger ages
+    along with it. */
 function ageAtLeast(minAge: number): string[] {
-  const start = Math.floor(minAge / 5) * 5
-  return AGE_BIN_IDS_ASC.filter((id) => id === 'age_90_plus' || Number(id.split('_')[1]) >= start)
+  const threshold = minAge >= 90 ? 90 : 1 + 5 * Math.floor((minAge - 1) / 5)
+  return AGE_BIN_IDS_ASC.filter((id) => binStart(id) >= threshold)
 }
 
 export type Preset = {

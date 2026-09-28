@@ -36,16 +36,29 @@ export const PROPERTIES: Property[] = [
     category: 'Demographic & Clinical',
     kind: 'enum',
     ordered: true,
-    // Everything under 70 collapses into one open-ended low bucket (the
-    // cohort skews elderly — see `data/records.ts` — so finer bins below 70
-    // would barely be populated); 70 and up is 5-year buckets, with
-    // everything 90 and older collapsed into one final open-ended bucket.
+    // 5-year buckets starting at age 1 (1–5, 6–10, …), with everything 90
+    // and older collapsed into one final open-ended bucket — the last
+    // regular bucket (86–89) is 4 years wide rather than 5 so that boundary
+    // lands exactly on 90.
     values: [
-      { id: 'age_lt_70', label: '<70' },
-      { id: 'age_70_74', label: '70–74' },
-      { id: 'age_75_79', label: '75–79' },
-      { id: 'age_80_84', label: '80–84' },
-      { id: 'age_85_89', label: '85–89' },
+      { id: 'age_1_5', label: '1–5' },
+      { id: 'age_6_10', label: '6–10' },
+      { id: 'age_11_15', label: '11–15' },
+      { id: 'age_16_20', label: '16–20' },
+      { id: 'age_21_25', label: '21–25' },
+      { id: 'age_26_30', label: '26–30' },
+      { id: 'age_31_35', label: '31–35' },
+      { id: 'age_36_40', label: '36–40' },
+      { id: 'age_41_45', label: '41–45' },
+      { id: 'age_46_50', label: '46–50' },
+      { id: 'age_51_55', label: '51–55' },
+      { id: 'age_56_60', label: '56–60' },
+      { id: 'age_61_65', label: '61–65' },
+      { id: 'age_66_70', label: '66–70' },
+      { id: 'age_71_75', label: '71–75' },
+      { id: 'age_76_80', label: '76–80' },
+      { id: 'age_81_85', label: '81–85' },
+      { id: 'age_86_89', label: '86–89' },
       { id: 'age_90_plus', label: '90+' },
     ],
   },
